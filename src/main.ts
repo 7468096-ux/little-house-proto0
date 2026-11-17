@@ -1,5 +1,7 @@
+import { emitVisualChange, LIVE, onVisualChange, VIS } from './visual';
+import { materialsOf, tickPatches } from './world/prims';
 import * as THREE from 'three';
-import { CameraRig, ISO_DIR } from './camera';
+import { CameraRig } from './camera';
 import { CFG, p2 } from './config';
 import { Audio } from './fx/audio';
 import { Particles } from './fx/particles';
@@ -18,6 +20,8 @@ import { Player } from './player';
 import './style.css';
 import { DayScreens, type Summary } from './ui/dayScreens';
 import { DebugPanel } from './ui/debug';
+import { RefCompare } from './ui/refCompare';
+import { VisualPanel } from './ui/visualPanel';
 import { Hud } from './ui/hud';
 import { InventoryUi } from './ui/inventoryUi';
 import { Bubble, OrderScreens, OrdersPanel } from './ui/orderScreens';
@@ -40,11 +44,11 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, R.maxPixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const bgColor = new THREE.Color(CFG.colors.background);
+const bgColor = new THREE.Color(VIS.colors.background);
 scene.background = bgColor;
 
 // --- свет: солнце/луна + рассеянный, меняются по часам ---
@@ -52,18 +56,49 @@ const hemi = new THREE.HemisphereLight();
 scene.add(hemi);
 const sun = new THREE.DirectionalLight();
 sun.castShadow = true;
-sun.shadow.mapSize.set(R.shadowMapSize, R.shadowMapSize);
 const sc = sun.shadow.camera;
-sc.left = -R.shadowArea;
-sc.right = R.shadowArea;
-sc.top = R.shadowArea;
-sc.bottom = -R.shadowArea;
-sc.near = 1;
-sc.far = 100;
-sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
+function applyShadows() {
+  const size = VIS.render.shadowMapSize;
+  if (sun.shadow.mapSize.x !== size) {
+    sun.shadow.mapSize.set(size, size);
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;
+  }
+  const a = VIS.render.shadowArea;
+  sc.left = -a;
+  sc.right = a;
+  sc.top = a;
+  sc.bottom = -a;
+  sc.near = VIS.shadows.near;
+  sc.far = VIS.shadows.far;
+  sc.updateProjectionMatrix();
+  sun.shadow.bias = VIS.shadows.bias;
+  sun.shadow.normalBias = VIS.shadows.normalBias;
+  sun.shadow.radius = VIS.shadows.softness;
+  sun.shadow.intensity = VIS.shadows.darkness;
+  const type = VIS.shadows.type === 'vsm' ? THREE.VSMShadowMap : THREE.PCFShadowMap;
+  if (renderer.shadowMap.type !== type) {
+    renderer.shadowMap.type = type;
+    sun.shadow.map?.dispose();
+    sun.shadow.map = null;
+    scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m) m.needsUpdate = true;
+    });
+  }
+}
+applyShadows();
+onVisualChange('shadows', applyShadows);
+onVisualChange('render', applyShadows);
 scene.add(sun, sun.target);
-const daylight = new Daylight(sun, hemi, bgColor);
+const fog = new THREE.Fog('#ffffff', VIS.fog.near, 140);
+function applyFog() {
+  scene.fog = VIS.fog.enabled ? fog : null;
+  fog.near = VIS.fog.near;
+}
+applyFog();
+onVisualChange('fog', applyFog);
+const daylight = new Daylight(sun, hemi, bgColor, fog);
 
 // --- зоны ---
 const outside = buildOutside();
@@ -332,7 +367,17 @@ function updateLantern(dt: number) {
 }
 
 // короткая подсказка управления при старте (время стоит, пока открыта)
-dayScreens.intro().then(() => journal.add('start'));
+// только для разработки: ?hour=18&freeze=1&nointro=1&nohud=1 — повторяемый кадр для сверки
+const DEVQ = import.meta.env.DEV ? new URLSearchParams(location.search) : new URLSearchParams();
+let devFreeze = DEVQ.get('freeze') === '1';
+if (DEVQ.has('hour')) clock.hour = Number(DEVQ.get('hour'));
+if (DEVQ.get('nohud') === '1') {
+  const st = document.createElement('style');
+  st.textContent = '#app > :not(canvas) { display: none !important; }';
+  document.head.append(st);
+}
+if (DEVQ.get('nointro') === '1') journal.add('start');
+else dayScreens.intro().then(() => journal.add('start'));
 
 let agataWasHere = false;
 function updateOrders() {
@@ -355,8 +400,8 @@ function setHighlight(it: Interactable | null, on: boolean) {
   it.root.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
     if (m && 'emissive' in m) {
-      m.emissive.set(on ? R.highlightColor : '#000000');
-      m.emissiveIntensity = on ? R.highlightEmissive : 0;
+      m.emissive.set(on ? VIS.render.highlightColor : VIS.render.highlightOff);
+      m.emissiveIntensity = on ? VIS.render.highlightEmissive : 0;
     }
   });
 }
@@ -368,7 +413,7 @@ function moveTo(area: Area, pos: P2, face: P2 | null, also?: () => void): Promis
     .fadeThrough(() => {
       also?.();
       player.teleport(area, pos, face);
-      rig.setViewSize(area.id === 'inside' ? CFG.camera.interiorViewSize : CFG.camera.viewSize);
+      rig.setIndoors(area.id === 'inside');
       rig.snapTo(cameraFocus());
     })
     .then(() => {
@@ -534,6 +579,15 @@ new DebugPanel(app, {
   reset: () => location.reload(),
 });
 
+new VisualPanel({
+  getHour: () => clock.hour,
+  setHour: (h) => (clock.hour = h),
+  setFrozen: (on) => (devFreeze = on),
+  isFrozen: () => devFreeze,
+});
+
+const refCompare = import.meta.env.DEV ? new RefCompare(renderer.domElement, app) : null;
+
 let hovered: Interactable | null = null;
 
 function labelFor(it: Interactable) {
@@ -545,32 +599,6 @@ function labelFor(it: Interactable) {
     return `${it.label}: ${lanternBought ? U.boardBought : U.boardHint.replace('{n}', String(CFG.lantern.price))}`;
   }
   return gather.labelFor(it);
-}
-
-// --- дом просвечивает, когда герой за ним ---
-const occRay = new THREE.Raycaster();
-const faded = new Set<THREE.Object3D>();
-function setFaded(obj: THREE.Object3D, on: boolean) {
-  obj.traverse((o) => {
-    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-    if (!m) return;
-    m.transparent = on;
-    m.opacity = on ? R.occluderOpacity : 1;
-    m.depthWrite = !on;
-    m.needsUpdate = true;
-  });
-}
-function updateOccluders() {
-  const from = new THREE.Vector3(player.pos.x, CFG.player.height * 0.5, player.pos.z);
-  occRay.set(from, ISO_DIR);
-  for (const occ of player.area.occluders) {
-    const hidden = occRay.intersectObject(occ, true).length > 0;
-    if (hidden !== faded.has(occ)) {
-      setFaded(occ, hidden);
-      if (hidden) faded.add(occ);
-      else faded.delete(occ);
-    }
-  }
 }
 
 let clockText = '';
@@ -601,7 +629,7 @@ function frame(dt: number, realDt: number) {
   }
 
   // время стоит, пока открыто окно; в доме идёт медленнее (time.insideScale)
-  const running = !hud.modalOpen && !anyScreen() && !busy;
+  const running = !hud.modalOpen && !anyScreen() && !busy && !devFreeze;
   const indoors = player.area.id === 'inside';
   if (running) {
     const h0 = clock.hour;
@@ -619,7 +647,6 @@ function frame(dt: number, realDt: number) {
 
   player.update(dt, locked ? { x: 0, z: 0 } : input.wasd());
   rig.follow(cameraFocus(), dt);
-  updateOccluders();
   updateStations(dt);
   updateOrders();
   updateLantern(dt);
@@ -628,16 +655,24 @@ function frame(dt: number, realDt: number) {
 
   // свет по часам; солнце следует за камерой, чтобы тени всегда были вокруг героя
   daylight.apply(clock.hour);
+  tickPatches();
+  for (const m of materialsOf('windowGlass')) {
+    m.emissive.set(LIVE.windowGlowColor);
+    m.emissiveIntensity = LIVE.windowGlowIntensity;
+  }
   sun.position.copy(rig.target).add(daylight.sunOffset);
   sun.target.position.copy(rig.target);
 
   grade.render(scene, rig.camera);
+  refCompare?.update();
 }
 
 const timer = new THREE.Timer();
+const perf = { frames: 0, t0: performance.now() };
 renderer.setAnimationLoop((t) => {
   timer.update(t);
   const raw = timer.getDelta();
+  perf.frames++;
   frame(Math.min(raw, 0.1), Math.min(raw, 1));
 });
 
@@ -649,5 +684,5 @@ window.addEventListener('resize', () => {
 
 // только для разработки: доступ к состоянию из консоли браузера
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside, orders, journal, lantern };
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside, orders, journal, lantern, renderer, rig, scene, perf, vis: VIS, emit: emitVisualChange };
 }

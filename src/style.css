@@ -477,3 +477,6 @@ button.secondary {
   font-size: 15px;
   line-height: 1.4;
 }
+
+/* режим сравнения с эталоном (F3): интерфейс игры скрыт */
+.compare > :not(canvas) { display: none !important; }

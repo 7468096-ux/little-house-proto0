@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import { VIS } from '../visual';
 import { CFG } from '../config';
-import { box, cyl, mat } from './prims';
+import { box, COLK, cyl, mat } from './prims';
 
 // Фонарь у крыльца (улучшение). Появляется после покупки.
 // Ночью: тёплый свет с мягкой тенью, ореол, 3–5 мотыльков вокруг.
@@ -16,9 +17,7 @@ function glowTexture() {
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
   const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(255,220,160,1)');
-  grd.addColorStop(0.25, 'rgba(255,200,120,0.5)');
-  grd.addColorStop(1, 'rgba(255,180,100,0)');
+  for (const [at, col] of VIS.lantern.glowStops) grd.addColorStop(at as number, col as string);
   g.fillStyle = grd;
   g.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
@@ -37,7 +36,7 @@ export class Lantern {
 
   constructor() {
     const L = CFG.lantern;
-    const C = CFG.colors;
+    const C = COLK;
     const [x, z] = L.pos;
     const H = L.postHeight;
     this.root.add(cyl(0.07, 0.09, H, C.lanternPost, x, 0, z, 8));
@@ -49,17 +48,17 @@ export class Lantern {
     this.root.add(box(0.26, 0.05, 0.26, C.lanternPost, lx, ly + 0.32, z)); // крышка
     const glassMesh = box(0.2, 0.3, 0.2, C.lanternGlass, lx, ly, z);
     this.glass = glassMesh.material as THREE.MeshStandardMaterial;
-    this.glass.emissive.set(L.light.color);
+    this.glass.emissive.set(VIS.lantern.lightColor);
     glassMesh.castShadow = false;
     this.root.add(glassMesh);
     this.lampPos = new THREE.Vector3(lx, ly + 0.15, z);
 
-    this.light = new THREE.PointLight(L.light.color, 0, L.light.distance, L.light.decay);
+    this.light = new THREE.PointLight(VIS.lantern.lightColor, 0, L.light.distance, L.light.decay);
     this.light.position.copy(this.lampPos);
     this.light.castShadow = true;
     this.light.shadow.mapSize.set(L.light.shadowMapSize, L.light.shadowMapSize);
-    this.light.shadow.radius = 4;
-    this.light.shadow.bias = -0.002;
+    this.light.shadow.radius = VIS.lantern.shadowRadius;
+    this.light.shadow.bias = VIS.lantern.shadowBias;
     this.root.add(this.light);
 
     this.glow = new THREE.Sprite(
@@ -91,8 +90,8 @@ export class Lantern {
 
     const M = L.moths;
     for (let i = 0; i < M.count; i++) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(M.size * 2, M.size * 0.4, M.size), mat(M.color));
-      (mesh.material as THREE.MeshStandardMaterial).emissive.set('#ffe8c0');
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(M.size * 2, M.size * 0.4, M.size), mat(VIS.lantern.mothColor));
+      (mesh.material as THREE.MeshStandardMaterial).emissive.set(VIS.lantern.mothEmissive);
       this.root.add(mesh);
       this.moths.push({
         mesh,

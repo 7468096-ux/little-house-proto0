@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { onVisualChange, VIS } from '../visual';
 import { CFG } from '../config';
 import { NavArea, type Obstacle } from '../nav/navArea';
-import { box, cyl, repivot } from './prims';
+import { box, COLK, cyl, repivot } from './prims';
 import type { Area, Interactable, InteractKind } from './types';
 
 // Комната внутри дома. Стоит в стороне от участка (interior.origin),
@@ -10,7 +11,7 @@ import type { Area, Interactable, InteractKind } from './types';
 
 export function buildInterior(): Area {
   const I = CFG.interior;
-  const C = CFG.colors;
+  const C = COLK;
   const T = CFG.texts.objects;
   const [ox, oz] = I.origin;
   const [rw, rd] = I.size;
@@ -113,9 +114,16 @@ export function buildInterior(): Area {
   }
 
   // тёплая лампа под потолком
-  const lamp = new THREE.PointLight('#ffe2b8', CFG.render.interiorLightIntensity, rw * 2, 2);
-  lamp.position.set(0, CFG.render.interiorLightHeight, 0);
+  const lamp = new THREE.PointLight(VIS.interior.lampColor, VIS.render.interiorLightIntensity, rw * 2, 2);
+  lamp.position.set(0, VIS.render.interiorLightHeight, 0);
   root.add(lamp);
+  const syncLamp = () => {
+    lamp.color.set(VIS.interior.lampColor);
+    lamp.intensity = VIS.render.interiorLightIntensity;
+    lamp.position.y = VIS.render.interiorLightHeight;
+  };
+  onVisualChange('interior', syncLamp);
+  onVisualChange('render', syncLamp);
 
   const nav = new NavArea(
     ox - rw / 2 + t / 2,

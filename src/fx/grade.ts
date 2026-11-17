@@ -3,6 +3,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { LIVE, VIS } from '../visual';
 import { CFG } from '../config';
 
 // Цветокоррекция кадра (как Gradient Map + Color Balance в Photoshop):
@@ -25,6 +27,9 @@ const GradeShader = {
     contrast: { value: 1 },
     vStart: { value: 0 },
     vEnd: { value: 1 },
+    temperature: { value: 0 },
+    cShadowTint: { value: new THREE.Color() },
+    shadowTintAmount: { value: 0 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -34,8 +39,8 @@ const GradeShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform vec3 cShadow, cMid, cLight, cWarm;
-    uniform float lift, tint, warmHighlights, vignette, vStart, vEnd, saturation, contrast;
+    uniform vec3 cShadow, cMid, cLight, cWarm, cShadowTint;
+    uniform float lift, tint, warmHighlights, vignette, vStart, vEnd, saturation, contrast, temperature, shadowTintAmount;
     varying vec2 vUv;
     void main() {
       vec4 src = texture2D(tDiffuse, vUv);
@@ -44,6 +49,12 @@ const GradeShader = {
       float l0 = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(l0), c, saturation);
       c = (c - 0.5) * contrast + 0.5;
+      // баланс белого: >0 теплее, <0 холоднее
+      c.r += temperature * 0.1;
+      c.b -= temperature * 0.1;
+      // тени уходят в заданный цвет (зелёные тени вместо серых)
+      float sh = 1.0 - smoothstep(0.0, 0.5, dot(c, vec3(0.299, 0.587, 0.114)));
+      c += (cShadowTint - vec3(dot(cShadowTint, vec3(0.299, 0.587, 0.114)))) * shadowTintAmount * sh;
       c = clamp(c, 0.0, 1.0);
       float l = dot(c, vec3(0.299, 0.587, 0.114));
       // карта градиента по яркости: тень → средний тон → свет
@@ -66,20 +77,41 @@ const GradeShader = {
 export class Grade {
   private composer: EffectComposer | null = null;
   private pass: ShaderPass | null = null;
+  private bloom: UnrealBloomPass | null = null;
 
   constructor(
     private renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
   ) {
-    const G = CFG.render.grade;
+    const G = VIS.grade;
     if (!G.enabled) return;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     const target = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.15, 0.5, 0.85);
+    this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass()); // перевод в sRGB — дальше работаем в «экранных» цветах, как в Photoshop
     this.pass = new ShaderPass(GradeShader);
+    this.composer.addPass(this.pass);
+    this.sync();
+    this.resize(window.innerWidth, window.innerHeight);
+  }
+
+  /** Прочитать VIS.grade в униформы шейдера (вызывается каждый кадр — правка видна сразу). */
+  private sync() {
+    if (!this.pass) return;
+    const G = VIS.grade;
+    const P = VIS.post;
+    this.renderer.toneMapping = P.toneMapping === 'aces' ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = LIVE.exposure;
+    if (this.bloom) {
+      this.bloom.enabled = P.bloom.enabled;
+      this.bloom.strength = LIVE.bloomStrength;
+      this.bloom.radius = P.bloom.radius;
+      this.bloom.threshold = P.bloom.threshold;
+    }
     const u = this.pass.uniforms;
     u.cShadow.value.set(G.shadow).convertLinearToSRGB();
     u.cMid.value.set(G.mid).convertLinearToSRGB();
@@ -89,12 +121,13 @@ export class Grade {
     u.tint.value = G.tint;
     u.warmHighlights.value = G.warmHighlights;
     u.vignette.value = G.vignette;
-    u.saturation.value = G.saturation;
+    u.saturation.value = G.saturation * LIVE.saturation;
     u.contrast.value = G.contrast;
     u.vStart.value = G.vignetteStart;
     u.vEnd.value = G.vignetteEnd;
-    this.composer.addPass(this.pass);
-    this.resize(window.innerWidth, window.innerHeight);
+    u.temperature.value = G.temperature;
+    u.cShadowTint.value.set(G.shadowTint);
+    u.shadowTintAmount.value = G.shadowTintAmount;
   }
 
   resize(w: number, h: number) {
@@ -104,6 +137,7 @@ export class Grade {
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera) {
+    this.sync();
     if (this.composer) this.composer.render();
     else this.renderer.render(scene, camera);
   }

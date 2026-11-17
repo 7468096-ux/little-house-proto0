@@ -1,3 +1,4 @@
+import { VIS } from '../visual';
 import { CFG } from '../config';
 import type { Audio } from '../fx/audio';
 import type { Particles } from '../fx/particles';
@@ -156,7 +157,7 @@ export class Gathering {
     const s = this.beds[i];
     v.plants.visible = s === 'ripe';
     v.sprouts.visible = s === 'planted' || s === 'watered';
-    (v.soil.material as THREE_Mat).color.set(s === 'watered' ? CFG.colors.soilWet : CFG.colors.bedSoil);
+    (v.soil.material as THREE_Mat).color.set(s === 'watered' ? VIS.colors.soilWet : VIS.colors.bedSoil);
   }
 
   // --- пень ---

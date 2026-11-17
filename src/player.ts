@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { VIS } from './visual';
 import { CFG } from './config';
 import type { P2 } from './nav/navArea';
-import { mat } from './world/prims';
+import { type Col, COLK, mat } from './world/prims';
 import type { Area, Interactable } from './world/types';
 
 // Герой-капсула. Идёт по пути из точек (клик) или прямо от WASD.
@@ -22,11 +23,11 @@ export class Player {
   constructor(public area: Area, start: P2) {
     const P = CFG.player;
     const len = P.height - P.radius * 2;
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(P.radius, len, 6, 12), mat(CFG.colors.player));
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(P.radius, len, 6, 12), mat(COLK.player));
     body.position.y = P.height / 2;
     body.castShadow = true;
     // «нос» — чтобы было видно, куда герой смотрит
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.25), mat(CFG.colors.playerNose));
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.25), mat(COLK.playerNose));
     nose.position.set(0, P.height * 0.72, P.radius);
     nose.castShadow = true;
     this.mesh.add(body, nose);
@@ -36,9 +37,9 @@ export class Player {
   }
 
   private buildTools() {
-    const C = CFG.colors;
+    const C = COLK;
     const P = CFG.player;
-    const part = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number) => {
+    const part = (geo: THREE.BufferGeometry, color: Col, x: number, y: number, z: number) => {
       const m = new THREE.Mesh(geo, mat(color));
       m.position.set(x, y, z);
       m.castShadow = true;

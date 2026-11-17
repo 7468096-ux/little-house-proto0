@@ -7,102 +7,22 @@
     "arriveDistance": 0.08
   },
   "camera": {
-    "viewSize": 15,
-    "interiorViewSize": 10,
-    "distance": 40,
     "followSharpness": 4,
     "near": 0.1,
     "far": 200
   },
   "render": {
     "maxPixelRatio": 2,
-    "shadowMapSize": 2048,
-    "shadowArea": 22,
-    "interiorLightIntensity": 30,
-    "interiorLightHeight": 2.6,
-    "highlightEmissive": 0.35,
     "hoverLabelOffset": [
       16,
       18
     ],
-    "highlightColor": "#fff2cc",
-    "occluderOpacity": 0.3,
     "fadeMs": 220,
-    "messageMs": 1800,
-    "grade": {
-      "enabled": true,
-      "shadow": "#151E1C",
-      "mid": "#394D2F",
-      "light": "#B7C657",
-      "warm": "#AE845D",
-      "lift": 0.9,
-      "tint": 0.1,
-      "warmHighlights": 0.1,
-      "vignette": 0.5,
-      "vignetteStart": 0.45,
-      "vignetteEnd": 1.45,
-      "saturation": 1.25,
-      "contrast": 1.12
-    }
+    "messageMs": 1800
   },
   "nav": {
     "cellSize": 0.25,
     "maxSearchRadius": 12
-  },
-  "colors": {
-    "background": "#151E1C",
-    "ground": "#8DA347",
-    "path": "#DAC38D",
-    "player": "#efe6cf",
-    "playerNose": "#3b3328",
-    "house": "#AE845D",
-    "roof": "#566279",
-    "door": "#6b4a2e",
-    "porch": "#c29a6a",
-    "bedSoil": "#5b3f2b",
-    "bedFrame": "#AE845D",
-    "plant": "#8DA347",
-    "stump": "#8f6a47",
-    "stumpTop": "#DAC38D",
-    "deadTree": "#5e4a38",
-    "water": "#12665B",
-    "bank": "#b5a88f",
-    "mailbox": "#8f6a47",
-    "fence": "#AE845D",
-    "gate": "#9a7350",
-    "forestTrunk": "#5e4a38",
-    "floor": "#AE845D",
-    "wall": "#c9a477",
-    "stove": "#5A6470",
-    "plate": "#3d434a",
-    "bed": "#6f8a4a",
-    "pillow": "#f1e6cc",
-    "soilWet": "#3a2a1e",
-    "sprout": "#B7C657",
-    "toolWood": "#AE845D",
-    "toolMetal": "#aab4bc",
-    "mailFlag": "#c0583e",
-    "envelope": "#f4ecd6",
-    "lanternPost": "#2e3a36",
-    "lanternGlass": "#ffe2a8",
-    "board": "#AE845D",
-    "boardPaper": "#f0e4c4",
-    "groundOlive": "#666B37",
-    "groundShade": "#213828",
-    "groundDeep": "#151E1C",
-    "pathEdge": "#b49a68",
-    "houseGap": "#4a3322",
-    "logEnd": "#DAC38D",
-    "roofRidge": "#434b55",
-    "windowGlass": "#2a4a48",
-    "waterEdge": "#0b4640",
-    "waterGlint": "#8fd0bd",
-    "bankLog": "#9c7550",
-    "forestDeep": "#151E1C",
-    "forestShade": "#213828",
-    "forestMid": "#394D2F",
-    "forestLit": "#8DA347",
-    "forestTip": "#B7C657"
   },
   "world": {
     "size": 30,
@@ -252,10 +172,7 @@
       "minHeight": 3,
       "maxHeight": 6,
       "gateViewClear": 4.5,
-      "gateViewDepth": 12,
-      "tiersMin": 3,
-      "tiersMax": 4,
-      "toothDepth": 0.22
+      "gateViewDepth": 12
     },
     "board": {
       "pos": [
@@ -266,13 +183,6 @@
         1.4,
         0.9
       ]
-    },
-    "ground": {
-      "segments": 120,
-      "litUntil": 0.55,
-      "oliveAt": 0.85,
-      "shadeAt": 1.08,
-      "deepAt": 1.4
     }
   },
   "interior": {
@@ -464,106 +374,6 @@
     "days": 3,
     "insideScale": 0.25
   },
-  "daylight": [
-    {
-      "hour": 6,
-      "sun": "#ffd9a0",
-      "sunI": 2.4,
-      "sky": "#9cc6ba",
-      "ground": "#4f6a2e",
-      "hemiI": 0.65,
-      "bg": "#151E1C",
-      "sunPos": [
-        -16,
-        12,
-        4
-      ]
-    },
-    {
-      "hour": 9,
-      "sun": "#ffe9b0",
-      "sunI": 3.3,
-      "sky": "#92c4b6",
-      "ground": "#6b7f3c",
-      "hemiI": 0.5,
-      "bg": "#151E1C",
-      "sunPos": [
-        -12,
-        22,
-        10
-      ]
-    },
-    {
-      "hour": 15,
-      "sun": "#ffe9b0",
-      "sunI": 3.3,
-      "sky": "#92c4b6",
-      "ground": "#6b7f3c",
-      "hemiI": 0.5,
-      "bg": "#151E1C",
-      "sunPos": [
-        -14,
-        24,
-        8
-      ]
-    },
-    {
-      "hour": 17,
-      "sun": "#ffd590",
-      "sunI": 3.0,
-      "sky": "#98c0b0",
-      "ground": "#66783a",
-      "hemiI": 0.5,
-      "bg": "#151E1C",
-      "sunPos": [
-        -16,
-        18,
-        8
-      ]
-    },
-    {
-      "hour": 19,
-      "sun": "#ffb070",
-      "sunI": 2.5,
-      "sky": "#86a8a0",
-      "ground": "#3b4a2a",
-      "hemiI": 0.55,
-      "bg": "#151E1C",
-      "sunPos": [
-        -20,
-        9,
-        8
-      ]
-    },
-    {
-      "hour": 21,
-      "sun": "#9ab8d8",
-      "sunI": 0.32,
-      "sky": "#2e4f5a",
-      "ground": "#0f1c18",
-      "hemiI": 0.38,
-      "bg": "#151E1C",
-      "sunPos": [
-        -6,
-        20,
-        12
-      ]
-    },
-    {
-      "hour": 26,
-      "sun": "#9ab8d8",
-      "sunI": 0.32,
-      "sky": "#2e4f5a",
-      "ground": "#0f1c18",
-      "hemiI": 0.38,
-      "bg": "#151E1C",
-      "sunPos": [
-        -6,
-        20,
-        12
-      ]
-    }
-  ],
   "debug": {
     "timeScaleFast": 4,
     "key": "Backquote",
@@ -633,7 +443,6 @@
     "particles": {
       "chips": {
         "count": 8,
-        "color": "#cdb08a",
         "speed": 3.2,
         "up": 3.5,
         "size": 0.1,
@@ -641,7 +450,6 @@
       },
       "chipsBig": {
         "count": 22,
-        "color": "#cdb08a",
         "speed": 4.5,
         "up": 5,
         "size": 0.12,
@@ -649,7 +457,6 @@
       },
       "dirt": {
         "count": 14,
-        "color": "#5d5047",
         "speed": 2.4,
         "up": 3.2,
         "size": 0.11,
@@ -657,7 +464,6 @@
       },
       "splash": {
         "count": 18,
-        "color": "#a9c6dc",
         "speed": 1.6,
         "up": 4.2,
         "size": 0.08,
@@ -665,7 +471,6 @@
       },
       "drops": {
         "count": 16,
-        "color": "#a9c6dc",
         "speed": 0.6,
         "up": -1,
         "size": 0.06,
@@ -674,7 +479,6 @@
       },
       "steam": {
         "count": 3,
-        "color": "#e8e8e8",
         "speed": 0.25,
         "up": 0.9,
         "size": 0.14,
@@ -683,7 +487,6 @@
       },
       "sparks": {
         "count": 10,
-        "color": "#ffb060",
         "speed": 1.2,
         "up": 2.5,
         "size": 0.06,
@@ -890,11 +693,6 @@
     ],
     "giftItem": "pie",
     "giftCount": 1,
-    "colors": {
-      "body": "#6f5f7e",
-      "head": "#ecd5b8",
-      "scarf": "#c0583e"
-    },
     "height": 1.45,
     "radius": 0.3,
     "bubbleMs": 4500
@@ -913,7 +711,6 @@
     ],
     "postHeight": 2.1,
     "light": {
-      "color": "#ffcf8a",
       "intensity": 16,
       "distance": 22,
       "decay": 1.1,
@@ -927,8 +724,7 @@
       "count": 4,
       "radius": 0.55,
       "speed": 2.4,
-      "size": 0.06,
-      "color": "#f4efe2"
+      "size": 0.06
     },
     "crackleVolume": 0.35,
     "crackleDistance": 8,

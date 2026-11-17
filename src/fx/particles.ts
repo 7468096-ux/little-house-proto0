@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { VIS } from '../visual';
 import { CFG } from '../config';
 
 // Частицы: щепки, комочки земли, брызги. Маленькие кубики,
@@ -25,7 +26,7 @@ export class Particles {
 
   constructor(scene: THREE.Scene) {
     for (let i = 0; i < POOL; i++) {
-      const mesh = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ roughness: 0.9 }));
+      const mesh = new THREE.Mesh(this.geo, new THREE.MeshStandardMaterial({ roughness: VIS.materials.particleRoughness }));
       mesh.visible = false;
       mesh.castShadow = true;
       scene.add(mesh);
@@ -35,7 +36,7 @@ export class Particles {
 
   /** Выпустить облачко частиц из точки (y — высота над землёй). */
   emit(kind: ParticleKind, x: number, y: number, z: number) {
-    const def = CFG.feedback.particles[kind] as {
+    const def = { ...CFG.feedback.particles[kind], color: VIS.particleColors[kind] } as {
       count: number; color: string; speed: number; up: number; size: number; life: number; height?: number; gravity?: number;
     };
     for (let i = 0; i < def.count; i++) {

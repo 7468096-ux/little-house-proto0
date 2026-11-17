@@ -1,8 +1,12 @@
+import { onVisualChange, VIS } from '../visual';
 import * as THREE from 'three';
 import { CFG, p2 } from '../config';
+import { SCREEN_RIGHT } from '../camera';
 import { NavArea, type Obstacle } from '../nav/navArea';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { box, cone, cyl, flat, log, mat, paint, ramp, repivot, seeded, vmat } from './prims';
+import { box, COLK, cone, cyl, flat, log, mat, paint, ramp, repivot, seeded, vmat } from './prims';
+import { buildScatter } from './scatter';
+import { aoLayer, type AoSpot } from './ao';
 import type { Area, Interactable } from './types';
 
 /** Части грядки, которые меняются по состоянию. */
@@ -29,40 +33,42 @@ export interface OutsideArea extends Area {
 // Дом на севере, лес вокруг, ручей на западе, калитка и тропинка в деревню на юге.
 
 /**
- * Ель из «пластин»-ярусов. У каждого яруса зубчатый край: светлая кромка, тёмная середина.
- * Верхний ярус светлее — ритм «светлый край, тёмное нутро».
+ * Ель из гранёных ярусов-конусов (visual.json → forest: число ярусов, граней, глубина зубцов).
+ * При toothDepth = 0 край яруса гладкий; светлые и теневые грани даёт двухтоновая заливка по солнцу.
  */
-function spruce(out: THREE.BufferGeometry[], x: number, z: number, h: number, rnd: () => number) {
-  const F = CFG.world.forest;
-  const C = CFG.colors;
+export function spruce(out: THREE.BufferGeometry[], x: number, z: number, h: number, rnd: () => number) {
+  const F = { ...CFG.world.forest, ...VIS.forest };
+  const C = VIS.colors;
   const n = F.tiersMin + Math.floor(rnd() * (F.tiersMax - F.tiersMin + 1));
-  const base = h * 0.18;
+  const base = h * F.trunkShare;
   const step = (h - base) / (n + 0.7);
-  const th = step * 1.7;
-  const seg = 10;
+  const th = step * F.tierOverlap;
+  const seg = F.segments;
+  const drop = Math.min(1, F.toothDepth / 0.22);
   const inner = ramp([
-    [0, C.forestDeep],
-    [0.5, C.forestShade],
-    [0.82, C.forestMid],
+    [0, C.forestShade],
+    [0.55, C.forestMid],
     [1, C.forestLit],
   ]);
   const top = ramp([
-    [0, C.forestShade],
-    [0.6, C.forestMid],
+    [0, C.forestMid],
+    [0.5, C.forestLit],
     [1, C.forestTip],
   ]);
   for (let i = 0; i < n; i++) {
-    const r = h * 0.3 * (1 - i / (n + 0.4));
+    const r = h * F.widthShare * (1 - i / (n + 0.4));
     const geo = new THREE.ConeGeometry(r, th, seg, 1);
     const pos = geo.attributes.position;
-    for (let k = 0; k < pos.count; k++) {
-      const vx = pos.getX(k);
-      const vz = pos.getZ(k);
-      if (Math.hypot(vx, vz) < 1e-4 || pos.getY(k) > -th / 2 + 1e-4) continue;
-      const a = Math.atan2(vz, vx);
-      const tooth = (((Math.round(a / ((Math.PI * 2) / seg)) % seg) + seg) % 2) === 0;
-      const f = tooth ? 1 : 1 - F.toothDepth;
-      pos.setXYZ(k, vx * f, pos.getY(k) - (tooth ? th * 0.06 : 0), vz * f);
+    if (F.toothDepth > 0) {
+      for (let k = 0; k < pos.count; k++) {
+        const vx = pos.getX(k);
+        const vz = pos.getZ(k);
+        if (Math.hypot(vx, vz) < 1e-4 || pos.getY(k) > -th / 2 + 1e-4) continue;
+        const a = Math.atan2(vz, vx);
+        const tooth = (((Math.round(a / ((Math.PI * 2) / seg)) % seg) + seg) % 2) === 0;
+        const f = tooth ? 1 : 1 - F.toothDepth;
+        pos.setXYZ(k, vx * f, pos.getY(k) - (tooth ? th * 0.06 * drop : 0), vz * f);
+      }
     }
     const tint = i === n - 1 ? top : inner;
     paint(geo, (px, _py, pz, c) => tint(Math.min(1, Math.hypot(px, pz) / r), c));
@@ -74,7 +80,7 @@ function spruce(out: THREE.BufferGeometry[], x: number, z: number, h: number, rn
 
 export function buildOutside(): OutsideArea {
   const W = CFG.world;
-  const C = CFG.colors;
+  const C = COLK;
   const T = CFG.texts.objects;
   const half = W.size / 2;
   const root = new THREE.Group();
@@ -98,19 +104,24 @@ export function buildOutside(): OutsideArea {
 
   // --- земля ---
   // Поляна в центре светлая, к краям и в глубину леса темнеет — естественная виньетка.
-  const G = W.ground;
-  const groundRamp = ramp([
-    [G.litUntil, C.ground],
-    [G.oliveAt, C.groundOlive],
-    [G.shadeAt, C.groundShade],
-    [G.deepAt, C.groundDeep],
-  ]);
-  const groundGeo = new THREE.PlaneGeometry(W.size * 4, W.size * 4, G.segments, G.segments);
-  paint(groundGeo, (x, y, _z, out) => {
-    const d = (Math.max(Math.abs(x), Math.abs(y)) * 0.6 + Math.hypot(x, y) * 0.4) / half;
-    groundRamp(d, out);
-  });
-  const ground = new THREE.Mesh(groundGeo, vmat(false));
+  const groundGeo = new THREE.PlaneGeometry(W.size * 4, W.size * 4, VIS.ground.segments, VIS.ground.segments);
+  const repaintGround = () => {
+    const G = VIS.ground;
+    const groundRamp = ramp([
+      [G.litUntil, C.ground],
+      [G.oliveAt, C.groundOlive],
+      [G.shadeAt, C.groundShade],
+      [G.deepAt, C.groundDeep],
+    ]);
+    paint(groundGeo, (x, y, _z, out) => {
+      const d = (Math.max(Math.abs(x), Math.abs(y)) * 0.6 + Math.hypot(x, y) * 0.4) / half;
+      groundRamp(d, out);
+    });
+  };
+  repaintGround();
+  onVisualChange('colors', repaintGround);
+  onVisualChange('ground', repaintGround);
+  const ground = new THREE.Mesh(groundGeo, vmat(false, 'grass'));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   root.add(ground);
@@ -141,61 +152,66 @@ export function buildOutside(): OutsideArea {
     const [hx, hz] = H.center;
     const [sw, sd] = H.size;
     const house = new THREE.Group();
-    // сруб: тёмная «щель» внутри и круглые брёвна снаружи, светлые торцы на углах
-    house.add(box(sw - 0.1, H.height, sd - 0.1, C.houseGap, hx, 0, hz));
-    const lr = 0.17;
-    const rows = Math.floor(H.height / (lr * 1.9));
-    const step = H.height / rows;
-    const ext = 0.2;
-    for (let i = 0; i < rows; i++) {
-      const y = step * (i + 0.5);
-      for (const sz of [-1, 1]) {
-        house.add(log(sw + ext * 2, lr, C.house, hx, y, hz + (sz * sd) / 2));
-        for (const sx of [-1, 1]) house.add(log(0.03, lr * 0.85, C.logEnd, hx + sx * (sw / 2 + ext), y, hz + (sz * sd) / 2));
-      }
-      for (const sx of [-1, 1]) {
-        const yz = y + step * 0.08;
-        house.add(log(sd + ext * 2, lr, C.house, hx + (sx * sw) / 2, yz, hz, true));
-        for (const sz of [-1, 1]) house.add(log(0.03, lr * 0.85, C.logEnd, hx + (sx * sw) / 2, yz, hz + sz * (sd / 2 + ext), true));
-      }
+    // оштукатуренные кремовые стены с деревянной обвязкой: цоколь, угловые стойки, пояс под крышей
+    house.add(box(sw, H.height, sd, C.house, hx, 0, hz));
+    house.add(box(sw + 0.08, 0.22, sd + 0.08, C.houseGap, hx, 0, hz)); // цоколь
+    const tr = 0.16;
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) house.add(box(tr, H.height, tr, C.door, hx + (sx * sw) / 2, 0, hz + (sz * sd) / 2));
     }
-    // двускатная крыша: треугольник, вытянутый вдоль Z
-    const over = 0.35;
-    const shape = new THREE.Shape();
-    shape.moveTo(-sw / 2 - over, 0);
-    shape.lineTo(sw / 2 + over, 0);
-    shape.lineTo(0, H.roofHeight);
-    shape.closePath();
-    const roofGeo = new THREE.ExtrudeGeometry(shape, { depth: sd + over * 2, bevelEnabled: false });
-    roofGeo.translate(0, 0, -(sd + over * 2) / 2);
-    const roof = new THREE.Mesh(roofGeo, mat(C.roof));
-    roof.position.set(hx, H.height, hz);
-    roof.castShadow = true;
-    roof.receiveShadow = true;
-    house.add(roof);
-    // ряды гонта и конёк
+    house.add(box(sw + 0.06, 0.14, sd + 0.06, C.door, hx, H.height - 0.14, hz)); // пояс под крышей
+    // фронтоны: тёмные доски в треугольниках над торцевыми стенами
+    const gable = new THREE.Shape();
+    gable.moveTo(-sw / 2, 0);
+    gable.lineTo(sw / 2, 0);
+    gable.lineTo(0, H.roofHeight);
+    gable.closePath();
+    const gableGeo = new THREE.ExtrudeGeometry(gable, { depth: sd, bevelEnabled: false });
+    gableGeo.translate(0, 0, -sd / 2);
+    const gableMesh = new THREE.Mesh(gableGeo, mat(C.houseGap));
+    gableMesh.position.set(hx, H.height, hz);
+    gableMesh.castShadow = gableMesh.receiveShadow = true;
+    house.add(gableMesh);
+    // двускатная крыша из двух скатов-плит, вытянута вдоль Z, с выносом над стенами
+    const over = 0.4;
     const halfW = sw / 2 + over;
-    const slope = Math.atan2(H.roofHeight, halfW);
+    const rise = H.roofHeight * (halfW / (sw / 2));
+    const slope = Math.atan2(rise, halfW);
+    const slab = Math.hypot(halfW, rise);
+    const roofLen = sd + over * 2;
+    const roofT = 0.14;
+    const y0 = H.height - over * (rise / halfW);
     for (const side of [-1, 1]) {
-      for (let k = 1; k <= 4; k++) {
-        const t = k / 5;
-        const strip = box(0.07, 0.03, sd + over * 2, C.roofRidge, 0, 0, 0);
-        strip.position.set(hx + side * halfW * (1 - t), H.height + H.roofHeight * t + 0.02, hz);
-        strip.rotation.z = -side * slope;
-        house.add(strip);
+      const r = box(slab + 0.05, roofT, roofLen, C.roof, 0, 0, 0);
+      r.position.set(hx + side * (halfW / 2), y0 + rise / 2 + roofT * 0.5, hz);
+      r.rotation.z = -side * slope;
+      house.add(r);
+      // плоские швы фальца вдоль ската
+      for (let k = 1; k <= 3; k++) {
+        const t = k / 4;
+        const seam = box(slab * 0.98, 0.03, 0.05, C.roofRidge, 0, 0, 0);
+        seam.position.set(hx + side * (halfW / 2), y0 + rise / 2 + roofT + 0.01, hz - roofLen / 2 + roofLen * t);
+        seam.rotation.z = -side * slope;
+        house.add(seam);
       }
     }
-    house.add(box(0.26, 0.14, sd + over * 2 + 0.05, C.roofRidge, hx, H.height + H.roofHeight - 0.09, hz));
-    house.add(box(0.6, 1.4, 0.6, C.bank, hx + sw * 0.25, H.height + 0.4, hz - sd * 0.15)); // каменная труба
-    // дверь и окна на южной стене
+    house.add(box(0.22, 0.1, roofLen + 0.02, C.roofRidge, hx, y0 + rise + roofT * 0.6, hz)); // конёк
+    // труба: светлая штукатурка с тёмным оголовком
+    const chx = hx + sw * 0.22;
+    const chz = hz - sd * 0.12;
+    house.add(box(0.6, 1.5, 0.6, C.board, chx, H.height + 0.5, chz));
+    house.add(box(0.72, 0.12, 0.72, C.houseGap, chx, H.height + 2.0, chz));
+    // дверь и окна на южной стене; рамы — дерево
     const front = hz + sd / 2;
     const P = W.porch;
-    const face = front + lr;
-    house.add(box(W.door.width + 0.16, W.door.height + 0.08, 0.06, C.logEnd, hx, P.height, face + 0.01));
-    house.add(box(W.door.width, W.door.height, 0.08, C.door, hx, P.height, face + 0.04));
-    for (const wx of [hx - sw * 0.32, hx + sw * 0.32]) {
-      house.add(box(0.94, 0.84, 0.05, C.logEnd, wx, 0.93, face + 0.01));
-      house.add(box(0.8, 0.7, 0.06, C.windowGlass, wx, 1.0, face + 0.03));
+    const face = front;
+    house.add(box(W.door.width + 0.18, W.door.height + 0.1, 0.06, C.door, hx, P.height, face + 0.01));
+    house.add(box(W.door.width, W.door.height, 0.08, C.houseGap, hx, P.height, face + 0.04));
+    for (const wx of [hx - sw * 0.3, hx + sw * 0.3]) {
+      house.add(box(0.94, 0.84, 0.05, C.door, wx, 0.93, face + 0.01));
+      house.add(box(0.76, 0.66, 0.06, C.windowGlass, wx, 1.02, face + 0.03));
+      house.add(box(0.06, 0.66, 0.07, C.door, wx, 1.02, face + 0.035)); // переплёт
+      house.add(box(0.76, 0.06, 0.07, C.door, wx, 1.32, face + 0.035));
     }
     // крыльцо
     house.add(box(P.size[0], P.height, P.size[1], C.porch, P.center[0], 0, P.center[1]));
@@ -274,12 +290,16 @@ export function buildOutside(): OutsideArea {
     const len = W.size * 3;
     // вода: глубокая бирюза, темнее у берегов, несколько светлых бликов
     const waterGeo = new THREE.PlaneGeometry(S.width, len, 8, 1);
-    const edge = ramp([
-      [0.55, C.water],
-      [1, C.waterEdge],
-    ]);
-    paint(waterGeo, (x, _y, _z, out) => edge(Math.abs(x) / (S.width / 2), out));
-    const water = new THREE.Mesh(waterGeo, vmat(false));
+    const repaintWater = () => {
+      const edge = ramp([
+        [0.55, C.water],
+        [1, C.waterEdge],
+      ]);
+      paint(waterGeo, (x, _y, _z, out) => edge(Math.abs(x) / (S.width / 2), out));
+    };
+    repaintWater();
+    onVisualChange('colors', repaintWater);
+    const water = new THREE.Mesh(waterGeo, vmat(false, 'water'));
     water.rotation.x = -Math.PI / 2;
     water.position.set(S.x, 0.03, 0);
     water.receiveShadow = true;
@@ -391,22 +411,34 @@ export function buildOutside(): OutsideArea {
     const [ax, az] = A.pos;
     const g = new THREE.Group();
     const bodyH = A.height * 0.7;
-    g.add(cone(A.radius * 1.4, bodyH, A.colors.body, ax, 0, az, 10)); // юбка-колокол
-    const head = new THREE.Mesh(new THREE.SphereGeometry(A.radius * 0.7, 12, 10), mat(A.colors.head));
+    g.add(cone(A.radius * 1.4, bodyH, VIS.agata.colors.body, ax, 0, az, 10)); // юбка-колокол
+    const head = new THREE.Mesh(new THREE.SphereGeometry(A.radius * 0.7, 12, 10), mat(VIS.agata.colors.head));
     head.position.set(ax, bodyH + A.radius * 0.45, az);
     head.castShadow = true;
     g.add(head);
-    g.add(cone(A.radius * 0.85, A.radius * 1.1, A.colors.scarf, ax, bodyH + A.radius * 0.3, az, 10)); // платок
+    g.add(cone(A.radius * 0.85, A.radius * 1.1, VIS.agata.colors.scarf, ax, bodyH + A.radius * 0.3, az, 10)); // платок
     g.visible = false;
     agata = add({ kind: 'agata', root: g, approach: p2(A.approach), faceTo: { x: ax, z: az } });
   }
 
   // --- лес вокруг участка (декор за границей) ---
-  {
+  // Пересобирается на лету, когда в VIS меняются цвета или форма ёлок.
+  const forestGroup = new THREE.Group();
+  root.add(forestGroup);
+  const buildForest = () => {
+    for (const ch of [...forestGroup.children]) {
+      forestGroup.remove(ch);
+      (ch as THREE.Mesh).geometry.dispose();
+    }
     const F = W.forest;
     const rnd = seeded(F.seed);
     const crowns: THREE.BufferGeometry[] = [];
     const trunks: THREE.BufferGeometry[] = [];
+    const spots: AoSpot[] = [];
+    const spot = (x: number, z: number, h: number) => {
+      const r = h * VIS.forest.widthShare * 0.85;
+      spots.push({ x, z, rx: r, rz: r });
+    };
     let placed = 0;
     for (let tries = 0; placed < F.count && tries < F.count * 20; tries++) {
       const a = rnd() * Math.PI * 2;
@@ -416,21 +448,57 @@ export function buildOutside(): OutsideArea {
       if (Math.abs(x) < half + 0.8 && Math.abs(z) < half + 0.8) continue;
       if (Math.abs(x - W.gate.x) < 2.5 && z > 0) continue; // дорога в деревню
       // не загораживать калитку (там стоит Агата) от камеры, которая смотрит с юго-востока
-      const dg = x - W.gate.x - (z - W.fenceZ);
+      const dg = ((x - W.gate.x) * SCREEN_RIGHT.x + (z - W.fenceZ) * SCREEN_RIGHT.z) * Math.SQRT2;
       if (Math.abs(dg) < F.gateViewClear && z > W.fenceZ && z - W.fenceZ < F.gateViewDepth) continue;
       const h = F.minHeight + rnd() * (F.maxHeight - F.minHeight);
       trunks.push(new THREE.CylinderGeometry(F.trunkRadius * 0.7, F.trunkRadius, h * 0.3, 6).translate(x, h * 0.15, z));
       spruce(crowns, x, z, h, rnd);
+      spot(x, z, h);
       placed++;
     }
+    // декоративные ели у краёв поляны (visual.json → forest.decor: [x, z, высота]); в навигацию не входят
+    for (const [x, z, h] of VIS.forest.decor) {
+      trunks.push(new THREE.CylinderGeometry(F.trunkRadius * 0.7, F.trunkRadius, h * 0.3, 6).translate(x, h * 0.15, z));
+      spruce(crowns, x, z, h, rnd);
+      spot(x, z, h);
+    }
+    forestAo.set(spots);
     // все ели — одним мешем: свой материал им не нужен (их не подсвечивают), а кадр легче
-    const crownMesh = new THREE.Mesh(mergeGeometries(crowns), vmat());
-    const trunkMesh = new THREE.Mesh(mergeGeometries(trunks), mat(C.forestTrunk));
+    const crownMesh = new THREE.Mesh(mergeGeometries(crowns), crownMat);
+    const trunkMesh = new THREE.Mesh(mergeGeometries(trunks), trunkMat);
     for (const m of [crownMesh, trunkMesh]) {
       m.castShadow = m.receiveShadow = true;
-      root.add(m);
+      forestGroup.add(m);
     }
+  };
+  const crownMat = vmat(true, 'pine');
+  const trunkMat = mat(C.forestTrunk);
+  const forestAo = aoLayer(root);
+  buildForest();
+  let forestTimer = 0;
+  const rebuildSoon = () => {
+    clearTimeout(forestTimer);
+    forestTimer = window.setTimeout(buildForest, 60);
+  };
+  onVisualChange('colors', rebuildSoon);
+  onVisualChange('forest', rebuildSoon);
+  onVisualChange('camera', rebuildSoon);
+
+  // тёмные пятна под крупными предметами (запасной AO)
+  {
+    const H = W.house;
+    const spots: AoSpot[] = [
+      { x: H.center[0], z: H.center[1], rx: H.size[0] / 2 + 0.6, rz: H.size[1] / 2 + 0.6 },
+    ];
+    for (const [bx, bz] of W.beds) spots.push({ x: bx, z: bz, rx: W.bedSize[0] / 2 + 0.3, rz: W.bedSize[1] / 2 + 0.3 });
+    for (const [sx, sz] of W.stumps) spots.push({ x: sx, z: sz, rx: W.stumpRadius * 1.8, rz: W.stumpRadius * 1.8 });
+    for (const [tx, tz] of W.deadTrees) spots.push({ x: tx, z: tz, rx: 0.6, rz: 0.6 });
+    spots.push({ x: W.mailbox[0], z: W.mailbox[1], rx: 0.45, rz: 0.45 });
+    spots.push({ x: W.board.pos[0], z: W.board.pos[1], rx: W.board.size[0] / 2 + 0.3, rz: 0.4 });
+    aoLayer(root).set(spots);
   }
+
+  buildScatter(root);
 
   const nav = new NavArea(-half, half, -half, half, CFG.nav.cellSize, obstacles, CFG.player.radius);
   const P = W.porch;

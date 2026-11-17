@@ -5,6 +5,7 @@ import { CFG } from '../config';
 export interface DebugActions {
   setFast(on: boolean): void;
   goToDay(n: number): void;
+  give(): void;
   reset(): void;
 }
 
@@ -38,7 +39,7 @@ export class DebugPanel {
 
     const give = document.createElement('button');
     give.textContent = `${D.give} (${D.giveLater})`;
-    give.disabled = true;
+    give.onclick = () => this.actions.give();
     this.el.append(give);
 
     const reset = document.createElement('button');

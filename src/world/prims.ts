@@ -51,3 +51,21 @@ export function seeded(seed: number): () => number {
     return s / 4294967296;
   };
 }
+
+/**
+ * Переносит «точку опоры» группы в центр её основания.
+ * Нужно, чтобы объект сжимался (squash) на месте, а не относительно центра мира.
+ * Вызывать до добавления группы в сцену.
+ */
+export function repivot(g: THREE.Object3D) {
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g);
+  const cx = (b.min.x + b.max.x) / 2;
+  const cz = (b.min.z + b.max.z) / 2;
+  for (const ch of g.children) {
+    ch.position.x -= cx;
+    ch.position.z -= cz;
+  }
+  g.position.x += cx;
+  g.position.z += cz;
+}

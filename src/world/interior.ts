@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CFG } from '../config';
 import { NavArea, type Obstacle } from '../nav/navArea';
-import { box, cyl } from './prims';
+import { box, cyl, repivot } from './prims';
 import type { Area, Interactable, InteractKind } from './types';
 
 // Комната внутри дома. Стоит в стороне от участка (interior.origin),
@@ -32,6 +32,7 @@ export function buildInterior(): Area {
       faceTo: { x: ox + faceTo[0], z: oz + faceTo[1] },
     };
     g.userData.interactable = it;
+    repivot(g);
     interactables.push(it);
     root.add(g);
   };

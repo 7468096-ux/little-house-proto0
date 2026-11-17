@@ -46,7 +46,7 @@ canvas {
 .message {
   position: absolute;
   left: 50%;
-  bottom: 32px;
+  bottom: 112px;
   transform: translateX(-50%);
   padding: 8px 14px;
   border-radius: 8px;
@@ -160,4 +160,75 @@ button.secondary {
 .debug-hint {
   font-size: 12px;
   opacity: 0.6;
+}
+
+.inventory {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(30, 30, 30, 0.75);
+  pointer-events: none;
+}
+.slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  padding: 6px 8px 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.slot.empty {
+  opacity: 0.45;
+}
+.slot-count {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.slot-name {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  background: var(--c);
+}
+.icon-potato {
+  width: 24px;
+  height: 18px;
+  border-radius: 50% / 55%;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.18);
+}
+.icon-wood {
+  width: 26px;
+  height: 12px;
+  border-radius: 6px;
+  box-shadow: inset -5px 0 0 #cdb08a;
+}
+.icon-water {
+  width: 16px;
+  height: 20px;
+  border-radius: 50% 50% 50% 50% / 35% 35% 65% 65%;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.12);
+}
+.icon.flying {
+  position: fixed;
+  left: 0;
+  top: 0;
+  margin: -11px 0 0 -11px;
+  z-index: 10;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
 }

@@ -1,13 +1,30 @@
 import * as THREE from 'three';
 import { CFG, p2 } from '../config';
 import { NavArea, type Obstacle } from '../nav/navArea';
-import { box, cone, cyl, flat, mat, seeded } from './prims';
+import { box, cone, cyl, flat, mat, repivot, seeded } from './prims';
 import type { Area, Interactable } from './types';
+
+/** Части грядки, которые меняются по состоянию. */
+export interface BedView {
+  soil: THREE.Mesh;
+  plants: THREE.Group;
+  sprouts: THREE.Group;
+}
+
+/** Часть пня, которая становится низким пеньком после рубки. */
+export interface StumpView {
+  body: THREE.Group;
+}
+
+export interface OutsideArea extends Area {
+  beds: BedView[];
+  stumps: StumpView[];
+}
 
 // Участок примерно 30×30 м. Ось X — на восток, ось Z — на юг (к камере).
 // Дом на севере, лес вокруг, ручей на западе, калитка и тропинка в деревню на юге.
 
-export function buildOutside(): Area {
+export function buildOutside(): OutsideArea {
   const W = CFG.world;
   const C = CFG.colors;
   const T = CFG.texts.objects;
@@ -17,10 +34,13 @@ export function buildOutside(): Area {
   const obstacles: Obstacle[] = [];
   const interactables: Interactable[] = [];
   const occluders: THREE.Object3D[] = [];
+  const beds: BedView[] = [];
+  const stumps: StumpView[] = [];
   let n = 0;
   const add = (it: Omit<Interactable, 'id' | 'area' | 'label'>) => {
     const full: Interactable = { ...it, id: `${it.kind}-${n++}`, area: 'outside', label: T[it.kind] };
     full.root.userData.interactable = full;
+    if (it.kind !== 'stream') repivot(full.root);
     interactables.push(full);
     root.add(full.root);
     return full;
@@ -98,17 +118,24 @@ export function buildOutside(): Area {
     for (const [bx, bz] of W.beds) {
       const g = new THREE.Group();
       g.add(box(bw + 0.15, 0.12, bd + 0.15, C.bedFrame, bx, 0, bz));
-      g.add(box(bw, 0.2, bd, C.bedSoil, bx, 0, bz));
-      // кустики картофеля (все грядки спелые в начале дня 1)
+      const soil = box(bw, 0.2, bd, C.bedSoil, bx, 0, bz);
+      g.add(soil);
+      // кустики картофеля (спелая грядка) и ростки (посажено)
+      const plants = new THREE.Group();
+      const sprouts = new THREE.Group();
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 2; j++) {
           const px = bx - bw / 2 + (bw / 3) * (i + 0.5);
           const pz = bz - bd / 2 + (bd / 2) * (j + 0.5);
-          g.add(cone(0.22, 0.45, C.plant, px, 0.2, pz, 6));
+          plants.add(cone(0.22, 0.45, C.plant, px, 0.2, pz, 6));
+          sprouts.add(cone(0.07, 0.16, C.sprout, px, 0.2, pz, 5));
         }
       }
+      g.add(plants, sprouts);
+      beds.push({ soil, plants, sprouts });
       add({
         kind: 'bed',
+        index: beds.length - 1,
         root: g,
         approach: { x: bx, z: bz + bd / 2 + 0.45 },
         faceTo: { x: bx, z: bz },
@@ -119,9 +146,12 @@ export function buildOutside(): Area {
   // --- пни ---
   for (const [sx, sz] of W.stumps) {
     const g = new THREE.Group();
-    g.add(cyl(W.stumpRadius, W.stumpRadius * 1.15, W.stumpHeight, C.stump, sx, 0, sz));
-    g.add(cyl(W.stumpRadius * 0.92, W.stumpRadius * 0.92, 0.02, C.stumpTop, sx, W.stumpHeight, sz));
-    add({ kind: 'stump', root: g, approach: { x: sx, z: sz }, faceTo: { x: sx, z: sz } });
+    const body = new THREE.Group();
+    body.add(cyl(W.stumpRadius, W.stumpRadius * 1.15, W.stumpHeight, C.stump, sx, 0, sz));
+    body.add(cyl(W.stumpRadius * 0.92, W.stumpRadius * 0.92, 0.02, C.stumpTop, sx, W.stumpHeight, sz));
+    g.add(body);
+    stumps.push({ body });
+    add({ kind: 'stump', index: stumps.length - 1, root: g, approach: { x: sx, z: sz }, faceTo: { x: sx, z: sz } });
     obstacles.push({ kind: 'circle', x: sx, z: sz, r: W.stumpRadius });
   }
 
@@ -220,6 +250,8 @@ export function buildOutside(): Area {
     nav,
     interactables,
     occluders,
+    beds,
+    stumps,
     floorY(x, z) {
       const inPorch =
         Math.abs(x - P.center[0]) < P.size[0] / 2 && Math.abs(z - P.center[1]) < P.size[1] / 2;

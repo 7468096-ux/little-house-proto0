@@ -17,6 +17,8 @@ export class CameraRig {
   private viewSize = CFG.camera.viewSize;
   private w = window.innerWidth;
   private h = window.innerHeight;
+  private shakeLeft = 0;
+  private shakeAmp = 0;
 
   constructor() {
     const C = CFG.camera;
@@ -47,7 +49,14 @@ export class CameraRig {
     this.apply();
   }
 
+  /** Короткая тряска камеры (последний удар по пню). */
+  shake(amount: number, time: number) {
+    this.shakeAmp = amount;
+    this.shakeLeft = time;
+  }
+
   follow(p: P2, dt: number) {
+    this.shakeLeft = Math.max(0, this.shakeLeft - dt);
     const k = 1 - Math.exp(-CFG.camera.followSharpness * dt);
     this.target.x += (p.x - this.target.x) * k;
     this.target.z += (p.z - this.target.z) * k;
@@ -57,5 +66,10 @@ export class CameraRig {
   private apply() {
     this.camera.position.copy(this.target).addScaledVector(ISO_DIR, CFG.camera.distance);
     this.camera.lookAt(this.target);
+    if (this.shakeLeft > 0) {
+      const a = this.shakeAmp * (this.shakeLeft / CFG.feedback.shakeTime);
+      this.camera.translateX((Math.random() * 2 - 1) * a);
+      this.camera.translateY((Math.random() * 2 - 1) * a);
+    }
   }
 }

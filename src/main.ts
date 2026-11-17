@@ -1,14 +1,20 @@
 import * as THREE from 'three';
 import { CameraRig, ISO_DIR } from './camera';
 import { CFG, p2 } from './config';
+import { Audio } from './fx/audio';
+import { Particles } from './fx/particles';
+import { updateSquash } from './fx/squash';
 import { GameClock } from './game/clock';
 import { Daylight } from './game/daylight';
+import { Gathering } from './game/gather';
+import { Inventory } from './game/inventory';
 import { Input } from './input';
 import type { P2 } from './nav/navArea';
 import { Player } from './player';
 import './style.css';
 import { DebugPanel } from './ui/debug';
 import { Hud } from './ui/hud';
+import { InventoryUi } from './ui/inventoryUi';
 import { Overlay } from './ui/overlay';
 import { buildInterior } from './world/interior';
 import { buildOutside } from './world/outside';
@@ -71,6 +77,37 @@ const ui = new Overlay(app);
 const hud = new Hud(app);
 const clock = new GameClock();
 
+// --- инвентарь, добыча, отклик ---
+const audio = new Audio();
+const particles = new Particles(scene);
+const inv = new Inventory();
+const invUi = new InventoryUi(app, inv);
+inv.onChange = () => invUi.sync();
+invUi.onLand = (_id, i) => audio.play('pickup', 1 + i * CFG.feedback.pickupPitchStep);
+const projV = new THREE.Vector3();
+const gather = new Gathering(outside, {
+  inv,
+  invUi,
+  audio,
+  particles,
+  rig,
+  toScreen(x, y, z) {
+    projV.set(x, y, z).project(rig.camera);
+    const r = renderer.domElement.getBoundingClientRect();
+    return { x: r.left + ((projV.x + 1) / 2) * r.width, y: r.top + ((1 - projV.y) / 2) * r.height };
+  },
+  message: (t) => ui.message(t),
+  hero: () => ({ x: player.pos.x, z: player.pos.z, heading: player.heading }),
+});
+gather.dayRef = () => clock.day;
+
+/** Начало нового дня: часы, рост грядок, пни. */
+function startDay(n: number) {
+  clock.startDay(n);
+  gather.newDay(n);
+  autoReturn = false;
+}
+
 /** В доме камера смотрит в центр комнаты, на улице — на героя. */
 const roomCenter = p2(CFG.interior.origin);
 const cameraFocus = () => (player.area.id === 'inside' ? roomCenter : player.pos);
@@ -114,10 +151,7 @@ const insideSpawn = (): [P2, P2] => {
 /** Сон: следующий день, 6:00, герой просыпается у кровати. */
 function sleep() {
   const next = clock.day + 1;
-  moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => {
-    clock.startDay(next);
-    autoReturn = false;
-  }).then(() => ui.message(U.goodMorning.replace('{day}', String(next))));
+  moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => startDay(next)).then(() => ui.message(U.goodMorning.replace('{day}', String(next))));
 }
 
 /** 2:00 — герой зевает и сам идёт домой, потом ложится. */
@@ -128,12 +162,19 @@ function startAutoReturn() {
 }
 
 player.onArrive = (it) => {
+  player.setTool(null);
+  if (gather.act(it)) {
+    player.setTool(gather.toolFor(it));
+    return;
+  }
   if (it.kind === 'houseDoor') {
+    audio.play('doorOpen');
     const [p, face] = insideSpawn();
     moveTo(inside, p, face).then(() => {
       if (autoReturn && !player.walkToObject(sleepBed, sleepBed.approach!)) sleep();
     });
   } else if (it.kind === 'exitDoor') {
+    audio.play('doorClose');
     moveTo(outside, doorOut, { x: doorOut.x, z: doorOut.z + 1 });
   } else if (it.kind === 'sleepBed') {
     if (autoReturn) sleep();
@@ -148,10 +189,13 @@ player.onArrive = (it) => {
 new DebugPanel(app, {
   setFast: (on) => (clock.scale = on ? CFG.debug.timeScaleFast : 1),
   goToDay: (n) => {
-    moveTo(outside, startPos, { x: startPos.x, z: startPos.z + 1 }, () => {
-      clock.startDay(n);
-      autoReturn = false;
-    });
+    moveTo(outside, startPos, { x: startPos.x, z: startPos.z + 1 }, () => startDay(n));
+  },
+  give: () => {
+    const G = CFG.debug.give;
+    inv.add('potato', G.potato);
+    inv.add('wood', G.wood);
+    inv.add('water', Math.max(0, G.water - inv.get('water')));
   },
   reset: () => location.reload(),
 });
@@ -199,12 +243,14 @@ function frame(dt: number, realDt: number) {
     hovered = nowHover;
   }
   renderer.domElement.style.cursor = nowHover ? 'pointer' : 'default';
-  ui.setHover(nowHover?.label ?? null, input.mouseX, input.mouseY);
+  ui.setHover(nowHover ? gather.labelFor(nowHover) : null, input.mouseX, input.mouseY);
 
   if (input.clicked) {
     input.clicked = false;
     if (pick && !locked) {
-      if (pick.it) player.walkToObject(pick.it, pick.point);
+      if (pick.it) {
+        if (player.walkToObject(pick.it, pick.point)) player.setTool(gather.toolFor(pick.it));
+      }
       else player.walkTo(pick.point);
     }
   }
@@ -223,6 +269,8 @@ function frame(dt: number, realDt: number) {
   player.update(dt, locked ? { x: 0, z: 0 } : input.wasd());
   rig.follow(cameraFocus(), dt);
   updateOccluders();
+  particles.update(dt);
+  updateSquash(dt);
 
   // свет по часам; солнце следует за камерой, чтобы тени всегда были вокруг героя
   daylight.apply(clock.hour);
@@ -246,5 +294,5 @@ window.addEventListener('resize', () => {
 
 // только для разработки: доступ к состоянию из консоли браузера
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { clock, player, frame };
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside };
 }

@@ -62,7 +62,11 @@
     "stove": "#6a6460",
     "plate": "#55504c",
     "bed": "#b9b2a8",
-    "pillow": "#e2ddd5"
+    "pillow": "#e2ddd5",
+    "soilWet": "#4a3f38",
+    "sprout": "#8fae84",
+    "toolWood": "#8a7a68",
+    "toolMetal": "#9aa0a6"
   },
   "world": {
     "size": 30,
@@ -289,7 +293,17 @@
       "sleepQuestion": "Лечь спать?",
       "yes": "Да",
       "no": "Нет",
-      "goodMorning": "Утро. День {day}"
+      "goodMorning": "Утро. День {day}",
+      "bucketFull": "Ведро полное ({n}/{n})",
+      "stumpChopped": "Пень срублен — отрастёт через день",
+      "bedGrowing": "Полито — к утру вырастет",
+      "bedRipe": "спелая",
+      "bedEmpty": "пустая — посадить",
+      "bedPlanted": "посажено — полить",
+      "bedWatered": "полита, растёт",
+      "stumpReady": "рубить",
+      "stumpStub": "отрастёт завтра",
+      "streamHint": "черпать воду"
     },
     "debug": {
       "title": "Отладка",
@@ -297,7 +311,7 @@
       "speedOff": "Ускорить время ×{n}: выкл",
       "day": "Перейти к дню {n}",
       "give": "Дать ресурсы и монеты",
-      "giveLater": "появится на этапах 3 и 5",
+      "giveLater": "монеты — на этапе 5",
       "reset": "Сброс",
       "hint": "Клавиша ` (Ё) — закрыть"
     }
@@ -311,16 +325,16 @@
   "daylight": [
     {
       "hour": 6,
-      "sun": "#ffcfa0",
-      "sunI": 1.2,
-      "sky": "#d8dfe6",
-      "ground": "#666660",
-      "hemiI": 0.55,
-      "bg": "#a7b0b8",
+      "sun": "#ffe2c0",
+      "sunI": 1.4,
+      "sky": "#e4eaf0",
+      "ground": "#77776c",
+      "hemiI": 0.7,
+      "bg": "#b4bcc2",
       "sunPos": [
-        20,
-        8,
-        4
+        18,
+        12,
+        6
       ]
     },
     {
@@ -410,6 +424,161 @@
   ],
   "debug": {
     "timeScaleFast": 4,
-    "key": "Backquote"
+    "key": "Backquote",
+    "give": {
+      "potato": 10,
+      "wood": 10,
+      "water": 3
+    }
+  },
+  "items": {
+    "potato": {
+      "name": "Картофель",
+      "color": "#b08a5a"
+    },
+    "wood": {
+      "name": "Дрова",
+      "color": "#8a6a4a"
+    },
+    "water": {
+      "name": "Вода",
+      "color": "#7fa6c8"
+    }
+  },
+  "gather": {
+    "digYield": 2,
+    "chopHits": 3,
+    "chopYield": 2,
+    "stumpRegrowDays": 1,
+    "bucketCapacity": 3,
+    "scoopAmount": 1,
+    "actionCooldown": 0.15
+  },
+  "feedback": {
+    "squashAmount": 0.22,
+    "squashTime": 0.28,
+    "shakeAmount": 0.28,
+    "shakeTime": 0.3,
+    "flyTime": 650,
+    "flyStagger": 110,
+    "flyArcHeight": 90,
+    "bumpTime": 260,
+    "pitchJitter": 0.12,
+    "pickupPitchStep": 0.06,
+    "stumpStubScale": 0.35,
+    "particles": {
+      "chips": {
+        "count": 8,
+        "color": "#cdb08a",
+        "speed": 3.2,
+        "up": 3.5,
+        "size": 0.1,
+        "life": 0.8
+      },
+      "chipsBig": {
+        "count": 22,
+        "color": "#cdb08a",
+        "speed": 4.5,
+        "up": 5,
+        "size": 0.12,
+        "life": 1
+      },
+      "dirt": {
+        "count": 14,
+        "color": "#5d5047",
+        "speed": 2.4,
+        "up": 3.2,
+        "size": 0.11,
+        "life": 0.8
+      },
+      "splash": {
+        "count": 18,
+        "color": "#a9c6dc",
+        "speed": 1.6,
+        "up": 4.2,
+        "size": 0.08,
+        "life": 0.7
+      },
+      "drops": {
+        "count": 16,
+        "color": "#a9c6dc",
+        "speed": 0.6,
+        "up": -1,
+        "size": 0.06,
+        "life": 0.6,
+        "height": 1.4
+      }
+    },
+    "gravity": 12
+  },
+  "sounds": {
+    "hit": {
+      "files": [
+        "impactWood_medium_000.ogg",
+        "impactWood_medium_001.ogg",
+        "impactWood_medium_002.ogg",
+        "impactWood_medium_003.ogg",
+        "impactWood_medium_004.ogg",
+        "chop.ogg"
+      ],
+      "volume": 0.8
+    },
+    "chopFinal": {
+      "files": [
+        "impactWood_heavy_000.ogg",
+        "impactWood_heavy_001.ogg"
+      ],
+      "volume": 1
+    },
+    "dig": {
+      "files": [
+        "impactSoft_heavy_000.ogg",
+        "impactSoft_heavy_001.ogg"
+      ],
+      "volume": 0.9
+    },
+    "plant": {
+      "files": [
+        "footstep_grass_000.ogg",
+        "footstep_grass_001.ogg",
+        "footstep_grass_002.ogg",
+        "impactSoft_medium_000.ogg"
+      ],
+      "volume": 0.9
+    },
+    "bucketFull": {
+      "files": [
+        "impactMetal_light_000.ogg",
+        "impactMetal_light_001.ogg"
+      ],
+      "volume": 0.6
+    },
+    "pickup": {
+      "files": [
+        "handleSmallLeather.ogg",
+        "handleSmallLeather2.ogg"
+      ],
+      "volume": 0.55
+    },
+    "doorOpen": {
+      "files": [
+        "doorOpen_1.ogg"
+      ],
+      "volume": 0.6
+    },
+    "doorClose": {
+      "files": [
+        "doorClose_1.ogg"
+      ],
+      "volume": 0.6
+    },
+    "splash": {
+      "synth": "splash",
+      "volume": 0.55
+    },
+    "pour": {
+      "synth": "pour",
+      "volume": 0.35
+    }
   }
 }

@@ -1,0 +1,119 @@
+{
+  "player": {
+    "speed": 4.5,
+    "radius": 0.35,
+    "height": 1.6,
+    "turnSpeed": 12,
+    "arriveDistance": 0.08
+  },
+  "camera": {
+    "viewSize": 15,
+    "interiorViewSize": 10,
+    "distance": 40,
+    "followSharpness": 4,
+    "near": 0.1,
+    "far": 200
+  },
+  "render": {
+    "maxPixelRatio": 2,
+    "shadowMapSize": 2048,
+    "shadowArea": 22,
+    "ambientIntensity": 0.55,
+    "sunIntensity": 1.6,
+    "sunOffset": [12, 22, 8],
+    "interiorLightIntensity": 30,
+    "interiorLightHeight": 2.6,
+    "highlightEmissive": 0.35,
+    "hoverLabelOffset": [16, 18],
+    "highlightColor": "#fff2cc",
+    "occluderOpacity": 0.3,
+    "fadeMs": 220,
+    "messageMs": 1800
+  },
+  "nav": {
+    "cellSize": 0.25,
+    "maxSearchRadius": 12
+  },
+  "colors": {
+    "background": "#9aa3a8",
+    "ground": "#8f9a8b",
+    "path": "#b3ab9c",
+    "player": "#e8e4dc",
+    "playerNose": "#5b5b5b",
+    "house": "#a7a29a",
+    "roof": "#6f6a64",
+    "door": "#5e5650",
+    "porch": "#8a8178",
+    "bedSoil": "#6b5f55",
+    "bedFrame": "#7d746b",
+    "plant": "#7f9a74",
+    "stump": "#857a6e",
+    "stumpTop": "#a89c8c",
+    "deadTree": "#6e6760",
+    "water": "#7f97a8",
+    "bank": "#9a958a",
+    "mailbox": "#7b7570",
+    "fence": "#8e877e",
+    "gate": "#7a7168",
+    "forestTrunk": "#5e5a55",
+    "forestCrown": "#6d7a6a",
+    "floor": "#a59a8c",
+    "wall": "#c2bcb3",
+    "stove": "#6a6460",
+    "plate": "#55504c",
+    "bed": "#b9b2a8",
+    "pillow": "#e2ddd5"
+  },
+  "world": {
+    "size": 30,
+    "houseDoorOutside": [0, -2.9],
+    "house": { "center": [0, -6], "size": [6, 5], "height": 2.6, "roofHeight": 1.6 },
+    "porch": { "center": [0, -2.9], "size": [3, 1.0], "height": 0.2 },
+    "door": { "width": 1.0, "height": 1.9 },
+    "path": [[0, -2.4], [0, 3], [0.5, 8], [0, 15]],
+    "pathWidth": 1.6,
+    "beds": [[6, -5], [8.6, -5], [6, -2.2], [8.6, -2.2]],
+    "bedSize": [2.0, 1.6],
+    "stumps": [[-9.5, -11.5], [-6, -12.5], [-2.5, -13], [3.5, -12.8], [7, -12.2], [10.5, -11]],
+    "stumpRadius": 0.45,
+    "stumpHeight": 0.5,
+    "deadTrees": [[-8, -13.3], [-4.2, -13.8], [1.5, -13.6], [5.4, -13.7], [9, -13]],
+    "deadTreeRadius": 0.2,
+    "deadTreeHeight": 4.5,
+    "stream": { "x": -12.5, "width": 2.2 },
+    "mailbox": [2.2, 3],
+    "fenceZ": 14.2,
+    "gate": { "x": 0, "width": 2 },
+    "forest": { "count": 70, "seed": 7, "ringInner": 16.5, "ringOuter": 24, "trunkRadius": 0.25, "minHeight": 3, "maxHeight": 6 }
+  },
+  "interior": {
+    "origin": [100, 0],
+    "size": [8, 6],
+    "wallHeight": 2.6,
+    "frontWallHeight": 0.3,
+    "wallThickness": 0.2,
+    "door": [-4, 1.2],
+    "spawn": [-3.2, 1.2],
+    "stove": { "pos": [-2.8, -2.1], "size": [1.4, 1.2, 1.4] },
+    "plate": { "pos": [-0.6, -2.3], "size": [1.4, 0.9, 0.9] },
+    "bed": { "pos": [2.6, -1.5], "size": [1.6, 0.5, 2.4] }
+  },
+  "texts": {
+    "title": "Домик в лесу — Прототип 0",
+    "objects": {
+      "houseDoor": "Войти в дом",
+      "exitDoor": "Выйти на улицу",
+      "bed": "Грядка",
+      "stump": "Пень",
+      "stream": "Ручей",
+      "mailbox": "Почтовый ящик",
+      "gate": "Калитка",
+      "stove": "Печь",
+      "plate": "Плита",
+      "sleepBed": "Кровать"
+    },
+    "ui": {
+      "arrived": "Рядом: {name}"
+    }
+  }
+}

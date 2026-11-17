@@ -1,0 +1,62 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #9aa3a8;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+canvas {
+  display: block;
+}
+
+.hover-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(30, 30, 30, 0.75);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.fade {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition-property: opacity;
+}
+.fade.on {
+  opacity: 1;
+}
+
+.message {
+  position: absolute;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.75);
+  color: #fff;
+  font-size: 15px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+.message.show {
+  opacity: 1;
+}

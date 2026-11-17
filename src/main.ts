@@ -1,34 +1,41 @@
 import * as THREE from 'three';
 import { CameraRig, ISO_DIR } from './camera';
 import { CFG, p2 } from './config';
+import { GameClock } from './game/clock';
+import { Daylight } from './game/daylight';
 import { Input } from './input';
+import type { P2 } from './nav/navArea';
 import { Player } from './player';
 import './style.css';
+import { DebugPanel } from './ui/debug';
+import { Hud } from './ui/hud';
 import { Overlay } from './ui/overlay';
 import { buildInterior } from './world/interior';
 import { buildOutside } from './world/outside';
-import type { Area, Interactable } from './world/types';
+import type { Area, Interactable, InteractKind } from './world/types';
 
-// Точка входа: сцена, свет, зоны, герой, игровой цикл.
+// Точка входа: сцена, свет, зоны, герой, время, игровой цикл.
 
 const app = document.getElementById('app')!;
 document.title = CFG.texts.title;
+const R = CFG.render;
+const U = CFG.texts.ui;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, CFG.render.maxPixelRatio));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, R.maxPixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(CFG.colors.background);
+const bgColor = new THREE.Color(CFG.colors.background);
+scene.background = bgColor;
 
-// --- свет (день; смена времени суток — этап 2) ---
-const R = CFG.render;
-const hemi = new THREE.HemisphereLight('#ffffff', '#6a6a60', R.ambientIntensity);
+// --- свет: солнце/луна + рассеянный, меняются по часам ---
+const hemi = new THREE.HemisphereLight();
 scene.add(hemi);
-const sun = new THREE.DirectionalLight('#ffffff', R.sunIntensity);
+const sun = new THREE.DirectionalLight();
 sun.castShadow = true;
 sun.shadow.mapSize.set(R.shadowMapSize, R.shadowMapSize);
 const sc = sun.shadow.camera;
@@ -41,28 +48,35 @@ sc.far = 100;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
+const daylight = new Daylight(sun, hemi, bgColor);
 
 // --- зоны ---
 const outside = buildOutside();
 const inside = buildInterior();
 scene.add(outside.root, inside.root);
+const find = (area: Area, kind: InteractKind) => area.interactables.find((i) => i.kind === kind)!;
+const houseDoor = find(outside, 'houseDoor');
+const sleepBed = find(inside, 'sleepBed');
 
-// --- герой и камера ---
+// --- герой, камера, время ---
 const doorOut = p2(CFG.world.houseDoorOutside);
-const player = new Player(outside, { x: doorOut.x, z: doorOut.z + 1.5 });
-player.heading = 0;
+const startPos: P2 = { x: doorOut.x, z: doorOut.z + 1.5 };
+const player = new Player(outside, startPos);
 scene.add(player.mesh);
 
 const rig = new CameraRig();
 rig.snapTo(player.pos);
 const input = new Input(renderer.domElement);
 const ui = new Overlay(app);
+const hud = new Hud(app);
+const clock = new GameClock();
 
 /** В доме камера смотрит в центр комнаты, на улице — на героя. */
 const roomCenter = p2(CFG.interior.origin);
 const cameraFocus = () => (player.area.id === 'inside' ? roomCenter : player.pos);
 
 let busy = false; // идёт затемнение — ввод игнорируется
+let autoReturn = false; // 2:00 — герой сам идёт домой спать
 
 function setHighlight(it: Interactable | null, on: boolean) {
   if (!it) return;
@@ -75,27 +89,72 @@ function setHighlight(it: Interactable | null, on: boolean) {
   });
 }
 
-function moveTo(area: Area, pos: { x: number; z: number }, face: { x: number; z: number }) {
+/** Затемнить экран и перенести героя (вход/выход, сон, отладка). */
+function moveTo(area: Area, pos: P2, face: P2 | null, also?: () => void): Promise<void> {
   busy = true;
-  ui.fadeThrough(() => {
-    player.teleport(area, pos, face);
-    rig.setViewSize(area.id === 'inside' ? CFG.camera.interiorViewSize : CFG.camera.viewSize);
-    rig.snapTo(cameraFocus());
-  }).then(() => (busy = false));
+  return ui
+    .fadeThrough(() => {
+      also?.();
+      player.teleport(area, pos, face);
+      rig.setViewSize(area.id === 'inside' ? CFG.camera.interiorViewSize : CFG.camera.viewSize);
+      rig.snapTo(cameraFocus());
+    })
+    .then(() => {
+      busy = false;
+    });
+}
+
+const insideSpawn = (): [P2, P2] => {
+  const I = CFG.interior;
+  const [ox, oz] = I.origin;
+  const p = { x: ox + I.spawn[0], z: oz + I.spawn[1] };
+  return [p, { x: p.x + 1, z: p.z }];
+};
+
+/** Сон: следующий день, 6:00, герой просыпается у кровати. */
+function sleep() {
+  const next = clock.day + 1;
+  moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => {
+    clock.startDay(next);
+    autoReturn = false;
+  }).then(() => ui.message(U.goodMorning.replace('{day}', String(next))));
+}
+
+/** 2:00 — герой зевает и сам идёт домой, потом ложится. */
+function startAutoReturn() {
+  autoReturn = true;
+  ui.message(U.yawn);
+  if (!player.walkToObject(houseDoor, houseDoor.approach!)) sleep();
 }
 
 player.onArrive = (it) => {
   if (it.kind === 'houseDoor') {
-    const I = CFG.interior;
-    const o = I.origin;
-    moveTo(inside, { x: o[0] + I.spawn[0], z: o[1] + I.spawn[1] }, { x: o[0] + I.spawn[0] + 1, z: o[1] + I.spawn[1] });
+    const [p, face] = insideSpawn();
+    moveTo(inside, p, face).then(() => {
+      if (autoReturn && !player.walkToObject(sleepBed, sleepBed.approach!)) sleep();
+    });
   } else if (it.kind === 'exitDoor') {
     moveTo(outside, doorOut, { x: doorOut.x, z: doorOut.z + 1 });
+  } else if (it.kind === 'sleepBed') {
+    if (autoReturn) sleep();
+    else hud.ask(U.sleepQuestion).then((yes) => yes && sleep());
   } else {
     // действия с объектами появятся на следующих этапах
-    ui.message(CFG.texts.ui.arrived.replace('{name}', it.label));
+    ui.message(U.arrived.replace('{name}', it.label));
   }
 };
+
+// --- панель отладки ---
+new DebugPanel(app, {
+  setFast: (on) => (clock.scale = on ? CFG.debug.timeScaleFast : 1),
+  goToDay: (n) => {
+    moveTo(outside, startPos, { x: startPos.x, z: startPos.z + 1 }, () => {
+      clock.startDay(n);
+      autoReturn = false;
+    });
+  },
+  reset: () => location.reload(),
+});
 
 let hovered: Interactable | null = null;
 
@@ -125,9 +184,14 @@ function updateOccluders() {
   }
 }
 
-function frame(dt: number) {
+let clockText = '';
+
+/** dt — для движения (обрезан, чтобы не было рывков); realDt — для часов (точный). */
+function frame(dt: number, realDt: number) {
+  const locked = busy || hud.modalOpen || autoReturn;
+
   // наведение и клик
-  const pick = busy ? null : input.pick(rig.camera, player.area);
+  const pick = locked ? null : input.pick(rig.camera, player.area);
   const nowHover = pick?.it ?? null;
   if (nowHover !== hovered) {
     setHighlight(hovered, false);
@@ -139,30 +203,48 @@ function frame(dt: number) {
 
   if (input.clicked) {
     input.clicked = false;
-    if (pick && !busy) {
+    if (pick && !locked) {
       if (pick.it) player.walkToObject(pick.it, pick.point);
       else player.walkTo(pick.point);
     }
   }
 
-  player.update(dt, busy ? { x: 0, z: 0 } : input.wasd());
+  // время идёт только на улице и когда не открыто окно
+  const running = player.area.id === 'outside' && !hud.modalOpen && !busy;
+  if (running) clock.tick(realDt);
+  if (clock.ended && !autoReturn && !busy && player.area.id === 'outside') startAutoReturn();
+
+  const text = `${clock.day}|${clock.format()}|${running}`;
+  if (text !== clockText) {
+    clockText = text;
+    hud.setClock(clock.day, clock.format(), !running);
+  }
+
+  player.update(dt, locked ? { x: 0, z: 0 } : input.wasd());
   rig.follow(cameraFocus(), dt);
   updateOccluders();
 
-  // солнце следует за камерой, чтобы тени всегда были вокруг героя
-  sun.position.set(rig.target.x + R.sunOffset[0], R.sunOffset[1], rig.target.z + R.sunOffset[2]);
+  // свет по часам; солнце следует за камерой, чтобы тени всегда были вокруг героя
+  daylight.apply(clock.hour);
+  sun.position.copy(rig.target).add(daylight.sunOffset);
   sun.target.position.copy(rig.target);
 
   renderer.render(scene, rig.camera);
 }
 
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
-  frame(dt);
+const timer = new THREE.Timer();
+renderer.setAnimationLoop((t) => {
+  timer.update(t);
+  const raw = timer.getDelta();
+  frame(Math.min(raw, 0.1), Math.min(raw, 1));
 });
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   rig.resize(window.innerWidth, window.innerHeight);
 });
+
+// только для разработки: доступ к состоянию из консоли браузера
+if (import.meta.env.DEV) {
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame };
+}

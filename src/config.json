@@ -18,13 +18,13 @@
     "maxPixelRatio": 2,
     "shadowMapSize": 2048,
     "shadowArea": 22,
-    "ambientIntensity": 0.55,
-    "sunIntensity": 1.6,
-    "sunOffset": [12, 22, 8],
     "interiorLightIntensity": 30,
     "interiorLightHeight": 2.6,
     "highlightEmissive": 0.35,
-    "hoverLabelOffset": [16, 18],
+    "hoverLabelOffset": [
+      16,
+      18
+    ],
     "highlightColor": "#fff2cc",
     "occluderOpacity": 0.3,
     "fadeMs": 220,
@@ -66,37 +66,206 @@
   },
   "world": {
     "size": 30,
-    "houseDoorOutside": [0, -2.9],
-    "house": { "center": [0, -6], "size": [6, 5], "height": 2.6, "roofHeight": 1.6 },
-    "porch": { "center": [0, -2.9], "size": [3, 1.0], "height": 0.2 },
-    "door": { "width": 1.0, "height": 1.9 },
-    "path": [[0, -2.4], [0, 3], [0.5, 8], [0, 15]],
+    "houseDoorOutside": [
+      0,
+      -2.9
+    ],
+    "house": {
+      "center": [
+        0,
+        -6
+      ],
+      "size": [
+        6,
+        5
+      ],
+      "height": 2.6,
+      "roofHeight": 1.6
+    },
+    "porch": {
+      "center": [
+        0,
+        -2.9
+      ],
+      "size": [
+        3,
+        1
+      ],
+      "height": 0.2
+    },
+    "door": {
+      "width": 1,
+      "height": 1.9
+    },
+    "path": [
+      [
+        0,
+        -2.4
+      ],
+      [
+        0,
+        3
+      ],
+      [
+        0.5,
+        8
+      ],
+      [
+        0,
+        15
+      ]
+    ],
     "pathWidth": 1.6,
-    "beds": [[6, -5], [8.6, -5], [6, -2.2], [8.6, -2.2]],
-    "bedSize": [2.0, 1.6],
-    "stumps": [[-9.5, -11.5], [-6, -12.5], [-2.5, -13], [3.5, -12.8], [7, -12.2], [10.5, -11]],
+    "beds": [
+      [
+        6,
+        -5
+      ],
+      [
+        8.6,
+        -5
+      ],
+      [
+        6,
+        -2.2
+      ],
+      [
+        8.6,
+        -2.2
+      ]
+    ],
+    "bedSize": [
+      2,
+      1.6
+    ],
+    "stumps": [
+      [
+        -9.5,
+        -11.5
+      ],
+      [
+        -6,
+        -12.5
+      ],
+      [
+        -2.5,
+        -13
+      ],
+      [
+        3.5,
+        -12.8
+      ],
+      [
+        7,
+        -12.2
+      ],
+      [
+        10.5,
+        -11
+      ]
+    ],
     "stumpRadius": 0.45,
     "stumpHeight": 0.5,
-    "deadTrees": [[-8, -13.3], [-4.2, -13.8], [1.5, -13.6], [5.4, -13.7], [9, -13]],
+    "deadTrees": [
+      [
+        -8,
+        -13.3
+      ],
+      [
+        -4.2,
+        -13.8
+      ],
+      [
+        1.5,
+        -13.6
+      ],
+      [
+        5.4,
+        -13.7
+      ],
+      [
+        9,
+        -13
+      ]
+    ],
     "deadTreeRadius": 0.2,
     "deadTreeHeight": 4.5,
-    "stream": { "x": -12.5, "width": 2.2 },
-    "mailbox": [2.2, 3],
+    "stream": {
+      "x": -12.5,
+      "width": 2.2
+    },
+    "mailbox": [
+      2.2,
+      3
+    ],
     "fenceZ": 14.2,
-    "gate": { "x": 0, "width": 2 },
-    "forest": { "count": 70, "seed": 7, "ringInner": 16.5, "ringOuter": 24, "trunkRadius": 0.25, "minHeight": 3, "maxHeight": 6 }
+    "gate": {
+      "x": 0,
+      "width": 2
+    },
+    "forest": {
+      "count": 70,
+      "seed": 7,
+      "ringInner": 16.5,
+      "ringOuter": 24,
+      "trunkRadius": 0.25,
+      "minHeight": 3,
+      "maxHeight": 6
+    }
   },
   "interior": {
-    "origin": [100, 0],
-    "size": [8, 6],
+    "origin": [
+      100,
+      0
+    ],
+    "size": [
+      8,
+      6
+    ],
     "wallHeight": 2.6,
     "frontWallHeight": 0.3,
     "wallThickness": 0.2,
-    "door": [-4, 1.2],
-    "spawn": [-3.2, 1.2],
-    "stove": { "pos": [-2.8, -2.1], "size": [1.4, 1.2, 1.4] },
-    "plate": { "pos": [-0.6, -2.3], "size": [1.4, 0.9, 0.9] },
-    "bed": { "pos": [2.6, -1.5], "size": [1.6, 0.5, 2.4] }
+    "door": [
+      -4,
+      1.2
+    ],
+    "spawn": [
+      -3.2,
+      1.2
+    ],
+    "stove": {
+      "pos": [
+        -2.8,
+        -2.1
+      ],
+      "size": [
+        1.4,
+        1.2,
+        1.4
+      ]
+    },
+    "plate": {
+      "pos": [
+        -0.6,
+        -2.3
+      ],
+      "size": [
+        1.4,
+        0.9,
+        0.9
+      ]
+    },
+    "bed": {
+      "pos": [
+        2.6,
+        -1.5
+      ],
+      "size": [
+        1.6,
+        0.5,
+        2.4
+      ]
+    }
   },
   "texts": {
     "title": "Домик в лесу — Прототип 0",
@@ -113,7 +282,134 @@
       "sleepBed": "Кровать"
     },
     "ui": {
-      "arrived": "Рядом: {name}"
+      "arrived": "Рядом: {name}",
+      "clock": "День {day} · {time}",
+      "clockPaused": "время стоит",
+      "yawn": "Герой зевает: пора домой спать",
+      "sleepQuestion": "Лечь спать?",
+      "yes": "Да",
+      "no": "Нет",
+      "goodMorning": "Утро. День {day}"
+    },
+    "debug": {
+      "title": "Отладка",
+      "speedOn": "Ускорить время ×{n}: вкл",
+      "speedOff": "Ускорить время ×{n}: выкл",
+      "day": "Перейти к дню {n}",
+      "give": "Дать ресурсы и монеты",
+      "giveLater": "появится на этапах 3 и 5",
+      "reset": "Сброс",
+      "hint": "Клавиша ` (Ё) — закрыть"
     }
+  },
+  "time": {
+    "dayStartHour": 6,
+    "dayEndHour": 26,
+    "secondsPerHour": 24,
+    "days": 3
+  },
+  "daylight": [
+    {
+      "hour": 6,
+      "sun": "#ffcfa0",
+      "sunI": 1.2,
+      "sky": "#d8dfe6",
+      "ground": "#666660",
+      "hemiI": 0.55,
+      "bg": "#a7b0b8",
+      "sunPos": [
+        20,
+        8,
+        4
+      ]
+    },
+    {
+      "hour": 9,
+      "sun": "#fff4e4",
+      "sunI": 1.6,
+      "sky": "#ffffff",
+      "ground": "#6a6a60",
+      "hemiI": 0.55,
+      "bg": "#9aa3a8",
+      "sunPos": [
+        12,
+        22,
+        8
+      ]
+    },
+    {
+      "hour": 15,
+      "sun": "#fff4e4",
+      "sunI": 1.6,
+      "sky": "#ffffff",
+      "ground": "#6a6a60",
+      "hemiI": 0.55,
+      "bg": "#9aa3a8",
+      "sunPos": [
+        -4,
+        24,
+        8
+      ]
+    },
+    {
+      "hour": 17,
+      "sun": "#ffc890",
+      "sunI": 1.3,
+      "sky": "#e8d0bc",
+      "ground": "#5f574f",
+      "hemiI": 0.45,
+      "bg": "#ad9e92",
+      "sunPos": [
+        -14,
+        15,
+        6
+      ]
+    },
+    {
+      "hour": 19,
+      "sun": "#ff9258",
+      "sunI": 0.8,
+      "sky": "#b08c84",
+      "ground": "#4a4040",
+      "hemiI": 0.35,
+      "bg": "#86706e",
+      "sunPos": [
+        -20,
+        7,
+        4
+      ]
+    },
+    {
+      "hour": 21,
+      "sun": "#8ea4ff",
+      "sunI": 0.22,
+      "sky": "#4a5a84",
+      "ground": "#1e2028",
+      "hemiI": 0.2,
+      "bg": "#222838",
+      "sunPos": [
+        -6,
+        20,
+        12
+      ]
+    },
+    {
+      "hour": 26,
+      "sun": "#8ea4ff",
+      "sunI": 0.22,
+      "sky": "#4a5a84",
+      "ground": "#1e2028",
+      "hemiI": 0.2,
+      "bg": "#222838",
+      "sunPos": [
+        6,
+        20,
+        12
+      ]
+    }
+  ],
+  "debug": {
+    "timeScaleFast": 4,
+    "key": "Backquote"
   }
 }

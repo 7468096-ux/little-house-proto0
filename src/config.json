@@ -315,7 +315,8 @@
       "stationIdle": "готовить",
       "cookingMsg": "{name}: готовится, ещё {m} мин",
       "bundle": "Связать дрова",
-      "ingredients": "Нужно:"
+      "ingredients": "Нужно:",
+      "clockSlow": "в доме время идёт медленнее"
     },
     "debug": {
       "title": "Отладка",
@@ -332,7 +333,8 @@
     "dayStartHour": 6,
     "dayEndHour": 26,
     "secondsPerHour": 24,
-    "days": 3
+    "days": 3,
+    "insideScale": 0.25
   },
   "daylight": [
     {

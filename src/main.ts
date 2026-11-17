@@ -252,7 +252,9 @@ function sleep() {
 function startAutoReturn() {
   autoReturn = true;
   ui.message(U.yawn);
-  if (!player.walkToObject(houseDoor, houseDoor.approach!)) sleep();
+  // в доме — сразу к кровати, на улице — сначала к двери
+  const target = player.area.id === 'inside' ? sleepBed : houseDoor;
+  if (!player.walkToObject(target, target.approach!)) sleep();
 }
 
 player.onArrive = (it) => {
@@ -358,19 +360,21 @@ function frame(dt: number, realDt: number) {
     }
   }
 
-  // время идёт только на улице и когда не открыто окно
-  const running = player.area.id === 'outside' && !hud.modalOpen && !menu.isOpen && !busy;
+  // время стоит, пока открыто окно; в доме идёт медленнее (time.insideScale)
+  const running = !hud.modalOpen && !menu.isOpen && !busy;
+  const indoors = player.area.id === 'inside';
   if (running) {
     const h0 = clock.hour;
-    clock.tick(realDt);
+    clock.tick(realDt * (indoors ? CFG.time.insideScale : 1));
     cooking.tick(clock.hour - h0);
   }
-  if (clock.ended && !autoReturn && !busy && player.area.id === 'outside') startAutoReturn();
+  if (clock.ended && !autoReturn && !busy && !hud.modalOpen && !menu.isOpen) startAutoReturn();
 
-  const text = `${clock.day}|${clock.format()}|${running}`;
+  const clockState = !running ? 'paused' : indoors ? 'slow' : 'normal';
+  const text = `${clock.day}|${clock.format()}|${clockState}`;
   if (text !== clockText) {
     clockText = text;
-    hud.setClock(clock.day, clock.format(), !running);
+    hud.setClock(clock.day, clock.format(), clockState);
   }
 
   player.update(dt, locked ? { x: 0, z: 0 } : input.wasd());

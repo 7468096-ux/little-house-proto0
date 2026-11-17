@@ -14,15 +14,15 @@ export class Hud {
     parent.append(this.clock, this.modal);
   }
 
-  setClock(day: number, time: string, paused: boolean) {
+  setClock(day: number, time: string, state: 'normal' | 'slow' | 'paused') {
     const U = CFG.texts.ui;
     const main = U.clock.replace('{day}', String(day)).replace('{time}', time);
     this.clock.innerHTML = '';
     this.clock.append(main);
-    if (paused) {
+    if (state !== 'normal') {
       const p = document.createElement('span');
       p.className = 'clock-paused';
-      p.textContent = U.clockPaused;
+      p.textContent = state === 'slow' ? U.clockSlow : U.clockPaused;
       this.clock.append(p);
     }
   }

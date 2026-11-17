@@ -66,7 +66,9 @@
     "soilWet": "#4a3f38",
     "sprout": "#8fae84",
     "toolWood": "#8a7a68",
-    "toolMetal": "#9aa0a6"
+    "toolMetal": "#9aa0a6",
+    "mailFlag": "#b5584a",
+    "envelope": "#f2eee6"
   },
   "world": {
     "size": 30,
@@ -214,7 +216,9 @@
       "ringOuter": 24,
       "trunkRadius": 0.25,
       "minHeight": 3,
-      "maxHeight": 6
+      "maxHeight": 6,
+      "gateViewClear": 4.5,
+      "gateViewDepth": 12
     }
   },
   "interior": {
@@ -283,7 +287,8 @@
       "gate": "Калитка",
       "stove": "Печь",
       "plate": "Плита",
-      "sleepBed": "Кровать"
+      "sleepBed": "Кровать",
+      "agata": "Бабушка Агата"
     },
     "ui": {
       "arrived": "Рядом: {name}",
@@ -316,15 +321,35 @@
       "cookingMsg": "{name}: готовится, ещё {m} мин",
       "bundle": "Связать дрова",
       "ingredients": "Нужно:",
-      "clockSlow": "в доме время идёт медленнее"
+      "clockSlow": "в доме время идёт медленнее",
+      "letterFrom": "Письмо от Агаты",
+      "signature": "Твоя Агата",
+      "needs": "Нужно:",
+      "pay": "Оплата: {n} монет",
+      "ok": "Хорошо",
+      "mailbox": "Почтовый ящик",
+      "mailPut": "Положить в ящик",
+      "mailNote": "Деньги придут утром с письмом",
+      "noMail": "Новых писем нет",
+      "mailThanksTitle": "Письмо от Агаты",
+      "mailThanks": "Получила, спасибо тебе! Кладу в ящик {n} монет.",
+      "handGive": "Отдать из рук в руки",
+      "handNote": "Деньги сразу и маленький подарок",
+      "agataGreeting": "Добрый вечер! Я тут до девяти постою.",
+      "agataArrived": "Агата пришла к калитке (до 21:00)",
+      "orders": "Заказы",
+      "newLetter": "В почтовом ящике новое письмо",
+      "paid": "+{n} монет",
+      "mailboxNew": "новое письмо",
+      "mailboxEmpty": "положить заказ",
+      "agataHint": "отдать заказ"
     },
     "debug": {
       "title": "Отладка",
       "speedOn": "Ускорить время ×{n}: вкл",
       "speedOff": "Ускорить время ×{n}: выкл",
       "day": "Перейти к дню {n}",
-      "give": "Дать ресурсы и монеты",
-      "giveLater": "монеты — на этапе 5",
+      "give": "Дать ресурсы и 100 монет",
       "reset": "Сброс",
       "hint": "Клавиша ` (Ё) — закрыть"
     }
@@ -382,10 +407,10 @@
     {
       "hour": 17,
       "sun": "#ffc890",
-      "sunI": 1.3,
-      "sky": "#e8d0bc",
-      "ground": "#5f574f",
-      "hemiI": 0.45,
+      "sunI": 1.5,
+      "sky": "#f0dccb",
+      "ground": "#6e655c",
+      "hemiI": 0.6,
       "bg": "#ad9e92",
       "sunPos": [
         -14,
@@ -395,12 +420,12 @@
     },
     {
       "hour": 19,
-      "sun": "#ff9258",
-      "sunI": 0.8,
-      "sky": "#b08c84",
-      "ground": "#4a4040",
-      "hemiI": 0.35,
-      "bg": "#86706e",
+      "sun": "#ffa468",
+      "sunI": 1.1,
+      "sky": "#c8a49a",
+      "ground": "#5a4e4c",
+      "hemiI": 0.5,
+      "bg": "#97807c",
       "sunPos": [
         -20,
         7,
@@ -442,10 +467,15 @@
     "give": {
       "potato": 10,
       "wood": 10,
-      "water": 3
+      "water": 3,
+      "coins": 100
     }
   },
   "items": {
+    "coins": {
+      "name": "Монеты",
+      "color": "#e0b84a"
+    },
     "potato": {
       "name": "Картофель",
       "color": "#b08a5a"
@@ -469,6 +499,10 @@
     "woodBundle": {
       "name": "Связка дров",
       "color": "#7a5a3c"
+    },
+    "pie": {
+      "name": "Пирожок",
+      "color": "#d9a05a"
     }
   },
   "gather": {
@@ -651,6 +685,20 @@
         "chop.ogg"
       ],
       "volume": 0.8
+    },
+    "coins": {
+      "files": [
+        "handleCoins.ogg",
+        "handleCoins2.ogg"
+      ],
+      "volume": 0.8
+    },
+    "letter": {
+      "files": [
+        "bookOpen.ogg",
+        "bookFlip2.ogg"
+      ],
+      "volume": 0.7
     }
   },
   "recipes": [
@@ -681,5 +729,66 @@
       },
       "hours": 0
     }
+  ],
+  "orders": [
+    {
+      "day": 1,
+      "title": "Что-нибудь тёплое на ужин",
+      "letter": "Здравствуй, соседушка! Вечера стали прохладные, а у меня руки уже не те. Испеки мне, пожалуйста, пару картофелин — что-нибудь тёплое на ужин. Вечером загляну к калитке.",
+      "needs": {
+        "bakedPotato": 2
+      },
+      "pay": 60,
+      "handLine": "Ох, ещё горячие! Спасибо, соседушка — держи пирожок."
+    },
+    {
+      "day": 2,
+      "title": "Сосед простыл, свари ему супу",
+      "letter": "Здравствуй! Сосед наш простыл, лежит и кашляет. Свари ему картофельного супу, а к нему одну печёную картофелину. Деньги я передам.",
+      "needs": {
+        "soup": 1,
+        "bakedPotato": 1
+      },
+      "pay": 70,
+      "handLine": "Вот он обрадуется! Погоди, вот тебе пирожок к чаю."
+    },
+    {
+      "day": 3,
+      "title": "Топить печку нечем",
+      "letter": "Здравствуй! Дрова у меня кончились, а ночами уже холодно. Свяжи мне две связки, если не трудно.",
+      "needs": {
+        "woodBundle": 2
+      },
+      "pay": 80,
+      "handLine": "Теперь и у меня будет тепло. Спасибо тебе! Держи пирожок."
+    }
+  ],
+  "agata": {
+    "from": 17,
+    "to": 21,
+    "pos": [
+      0.8,
+      15
+    ],
+    "approach": [
+      0.8,
+      13.55
+    ],
+    "giftItem": "pie",
+    "giftCount": 1,
+    "colors": {
+      "body": "#8c7f8f",
+      "head": "#e6d2bf",
+      "scarf": "#b0786a"
+    },
+    "height": 1.45,
+    "radius": 0.3,
+    "bubbleMs": 4500
+  },
+  "inventoryAlwaysShown": [
+    "coins",
+    "potato",
+    "wood",
+    "water"
   ]
 }

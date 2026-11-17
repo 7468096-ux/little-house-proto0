@@ -66,7 +66,7 @@ export class Input {
     if (!this.hasMouse) return null;
     this.ray.setFromCamera(this.ndc, camera);
     const objHits = this.ray.intersectObjects(
-      area.interactables.map((i) => i.root),
+      area.interactables.filter((i) => i.root.visible).map((i) => i.root),
       true,
     );
     if (objHits.length > 0) {

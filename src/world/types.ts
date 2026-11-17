@@ -13,7 +13,8 @@ export type InteractKind =
   | 'gate'
   | 'stove'
   | 'plate'
-  | 'sleepBed';
+  | 'sleepBed'
+  | 'agata';
 
 export interface Interactable {
   id: string;

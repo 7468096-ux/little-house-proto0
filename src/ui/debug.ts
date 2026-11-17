@@ -38,7 +38,7 @@ export class DebugPanel {
     }
 
     const give = document.createElement('button');
-    give.textContent = `${D.give} (${D.giveLater})`;
+    give.textContent = D.give;
     give.onclick = () => this.actions.give();
     this.el.append(give);
 

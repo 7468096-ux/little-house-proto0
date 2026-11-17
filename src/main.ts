@@ -9,6 +9,7 @@ import { Daylight } from './game/daylight';
 import { Cooking, RECIPES, type StationId } from './game/cooking';
 import { Gathering } from './game/gather';
 import { Inventory, type ItemId } from './game/inventory';
+import { Orders } from './game/orders';
 import { Input } from './input';
 import type { P2 } from './nav/navArea';
 import { Player } from './player';
@@ -16,6 +17,7 @@ import './style.css';
 import { DebugPanel } from './ui/debug';
 import { Hud } from './ui/hud';
 import { InventoryUi } from './ui/inventoryUi';
+import { Bubble, OrderScreens, OrdersPanel } from './ui/orderScreens';
 import { StationMenu } from './ui/stationMenu';
 import { StationTimers } from './ui/stationTimers';
 import { Overlay } from './ui/overlay';
@@ -129,6 +131,7 @@ function updateCraftButton() {
 inv.onChange = () => {
   invUi.sync();
   updateCraftButton();
+  ordersPanel.render();
 };
 updateCraftButton();
 invUi.craftBtn.onclick = () => {
@@ -199,7 +202,87 @@ function startDay(n: number) {
   clock.startDay(n);
   cooking.finishAll();
   gather.newDay(n);
+  orders.newDay(n);
+  refreshOrders();
   autoReturn = false;
+}
+
+// --- заказы Агаты: почтовый ящик, калитка, монеты ---
+const orders = new Orders(inv);
+const screens = new OrderScreens(app, inv, orders);
+const ordersPanel = new OrdersPanel(app, inv, orders);
+const bubble = new Bubble(app);
+const mailboxIt = find(outside, 'mailbox');
+const agataIt = outside.agata;
+
+/** Флажок ящика и список заказов — по текущему состоянию. */
+function refreshOrders() {
+  const has = orders.hasMail;
+  outside.mailbox.flag.rotation.x = has ? 0 : Math.PI / 2;
+  outside.mailbox.envelope.visible = has;
+  ordersPanel.render();
+}
+
+function screenOf(it: Interactable, y: number) {
+  const p = it.root.getWorldPosition(new THREE.Vector3());
+  return toScreen(p.x, y, p.z);
+}
+
+/** Прилетают монеты (и подарок) из точки на экране. */
+function payCoins(n: number, from: { x: number; y: number }) {
+  audio.play('coins');
+  invUi.fly('coins', from.x, from.y, n, 6);
+  inv.add('coins', n);
+}
+
+async function actMailbox() {
+  squash(mailboxIt.root, 0.8);
+  if (orders.hasMail) {
+    // читаем все письма по очереди
+    for (let l = orders.readNext(); l; l = orders.readNext()) {
+      audio.play('letter');
+      refreshOrders();
+      await screens.letter(l);
+      if (l.kind === 'payment') payCoins(l.order.pay, screenOf(mailboxIt, 1.2));
+    }
+    refreshOrders();
+    return;
+  }
+  const o = await screens.mailbox();
+  if (o && orders.deliverMail(o, clock.day)) {
+    audio.play('letter');
+    squash(mailboxIt.root, 1.2);
+    ui.message(CFG.texts.ui.mailNote);
+    refreshOrders();
+  }
+}
+
+async function actAgata() {
+  if (!agataIt.root.visible) return;
+  const o = await screens.agata();
+  if (o && orders.deliverHand(o, clock.day)) {
+    const from = screenOf(agataIt, CFG.agata.height);
+    payCoins(o.pay, from);
+    const A = CFG.agata;
+    invUi.fly(A.giftItem as ItemId, from.x, from.y, A.giftCount);
+    inv.add(A.giftItem as ItemId, A.giftCount);
+    squash(agataIt.root, 0.6);
+    bubble.say(o.handLine);
+    refreshOrders();
+  }
+}
+
+// утро дня 1: первое письмо уже в ящике
+orders.newDay(1);
+refreshOrders();
+
+let agataWasHere = false;
+function updateOrders() {
+  const here = Orders.agataHere(clock.hour);
+  agataIt.root.visible = here;
+  if (here && !agataWasHere && player.area.id === 'outside') ui.message(CFG.texts.ui.agataArrived);
+  agataWasHere = here;
+  bubble.update(here && player.area.id === 'outside' ? screenOf(agataIt, CFG.agata.height + 0.4) : null);
 }
 
 /** В доме камера смотрит в центр комнаты, на улице — на героя. */
@@ -259,6 +342,14 @@ function startAutoReturn() {
 
 player.onArrive = (it) => {
   player.setTool(null);
+  if (it.kind === 'mailbox') {
+    actMailbox();
+    return;
+  }
+  if (it.kind === 'agata') {
+    actAgata();
+    return;
+  }
   if (it.kind === 'stove' || it.kind === 'plate') {
     actStation(it.kind, it);
     return;
@@ -296,6 +387,7 @@ new DebugPanel(app, {
     inv.add('potato', G.potato);
     inv.add('wood', G.wood);
     inv.add('water', Math.max(0, G.water - inv.get('water')));
+    inv.add('coins', G.coins);
   },
   reset: () => location.reload(),
 });
@@ -303,7 +395,10 @@ new DebugPanel(app, {
 let hovered: Interactable | null = null;
 
 function labelFor(it: Interactable) {
+  const U = CFG.texts.ui;
   if (it.kind === 'stove' || it.kind === 'plate') return stationLabel(it.kind, it.label);
+  if (it.kind === 'mailbox') return `${it.label}: ${orders.hasMail ? U.mailboxNew : U.mailboxEmpty}`;
+  if (it.kind === 'agata') return `${it.label}: ${U.agataHint}`;
   return gather.labelFor(it);
 }
 
@@ -337,7 +432,7 @@ let clockText = '';
 
 /** dt — для движения (обрезан, чтобы не было рывков); realDt — для часов (точный). */
 function frame(dt: number, realDt: number) {
-  const locked = busy || hud.modalOpen || menu.isOpen || autoReturn;
+  const locked = busy || hud.modalOpen || (menu.isOpen || screens.isOpen) || autoReturn;
 
   // наведение и клик
   const pick = locked ? null : input.pick(rig.camera, player.area);
@@ -361,14 +456,14 @@ function frame(dt: number, realDt: number) {
   }
 
   // время стоит, пока открыто окно; в доме идёт медленнее (time.insideScale)
-  const running = !hud.modalOpen && !menu.isOpen && !busy;
+  const running = !hud.modalOpen && !(menu.isOpen || screens.isOpen) && !busy;
   const indoors = player.area.id === 'inside';
   if (running) {
     const h0 = clock.hour;
     clock.tick(realDt * (indoors ? CFG.time.insideScale : 1));
     cooking.tick(clock.hour - h0);
   }
-  if (clock.ended && !autoReturn && !busy && !hud.modalOpen && !menu.isOpen) startAutoReturn();
+  if (clock.ended && !autoReturn && !busy && !hud.modalOpen && !(menu.isOpen || screens.isOpen)) startAutoReturn();
 
   const clockState = !running ? 'paused' : indoors ? 'slow' : 'normal';
   const text = `${clock.day}|${clock.format()}|${clockState}`;
@@ -381,6 +476,7 @@ function frame(dt: number, realDt: number) {
   rig.follow(cameraFocus(), dt);
   updateOccluders();
   updateStations(dt);
+  updateOrders();
   particles.update(dt);
   updateSquash(dt);
 
@@ -406,5 +502,5 @@ window.addEventListener('resize', () => {
 
 // только для разработки: доступ к состоянию из консоли браузера
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside };
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside, orders };
 }

@@ -19,6 +19,9 @@ export interface StumpView {
 export interface OutsideArea extends Area {
   beds: BedView[];
   stumps: StumpView[];
+  /** Флажок и письмо почтового ящика. */
+  mailbox: { flag: THREE.Object3D; envelope: THREE.Object3D };
+  agata: Interactable;
 }
 
 // Участок примерно 30×30 м. Ось X — на восток, ось Z — на юг (к камере).
@@ -36,6 +39,8 @@ export function buildOutside(): OutsideArea {
   const occluders: THREE.Object3D[] = [];
   const beds: BedView[] = [];
   const stumps: StumpView[] = [];
+  let mailbox!: { flag: THREE.Object3D; envelope: THREE.Object3D };
+  let agata!: Interactable;
   let n = 0;
   const add = (it: Omit<Interactable, 'id' | 'area' | 'label'>) => {
     const full: Interactable = { ...it, id: `${it.kind}-${n++}`, area: 'outside', label: T[it.kind] };
@@ -188,7 +193,16 @@ export function buildOutside(): OutsideArea {
     const g = new THREE.Group();
     g.add(cyl(0.06, 0.06, 1.0, C.mailbox, mx, 0, mz, 6));
     g.add(box(0.35, 0.3, 0.5, C.mailbox, mx, 1.0, mz));
-    g.add(box(0.04, 0.25, 0.12, C.door, mx + 0.2, 1.15, mz - 0.1)); // флажок
+    // флажок: поднят, когда в ящике новое письмо
+    const flag = new THREE.Group();
+    flag.add(box(0.03, 0.4, 0.03, C.door, 0, 0, 0));
+    flag.add(box(0.03, 0.14, 0.18, C.mailFlag, 0, 0.26, 0.09));
+    flag.position.set(mx + 0.2, 1.05, mz + 0.1);
+    g.add(flag);
+    // уголок письма, торчащий из ящика
+    const envelope = box(0.22, 0.04, 0.16, C.envelope, mx, 1.3, mz + 0.18);
+    g.add(envelope);
+    mailbox = { flag, envelope };
     add({ kind: 'mailbox', root: g, approach: { x: mx, z: mz }, faceTo: { x: mx, z: mz } });
     obstacles.push({ kind: 'circle', x: mx, z: mz, r: 0.3 });
   }
@@ -222,6 +236,22 @@ export function buildOutside(): OutsideArea {
     obstacles.push({ kind: 'rect', minX: x0 - 1, maxX: x1 + 1, minZ: fz - 0.1, maxZ: fz + 0.1 });
   }
 
+  // --- бабушка Агата за калиткой (видна 17:00–21:00) ---
+  {
+    const A = CFG.agata;
+    const [ax, az] = A.pos;
+    const g = new THREE.Group();
+    const bodyH = A.height * 0.7;
+    g.add(cone(A.radius * 1.4, bodyH, A.colors.body, ax, 0, az, 10)); // юбка-колокол
+    const head = new THREE.Mesh(new THREE.SphereGeometry(A.radius * 0.7, 12, 10), mat(A.colors.head));
+    head.position.set(ax, bodyH + A.radius * 0.45, az);
+    head.castShadow = true;
+    g.add(head);
+    g.add(cone(A.radius * 0.85, A.radius * 1.1, A.colors.scarf, ax, bodyH + A.radius * 0.3, az, 10)); // платок
+    g.visible = false;
+    agata = add({ kind: 'agata', root: g, approach: p2(A.approach), faceTo: { x: ax, z: az } });
+  }
+
   // --- лес вокруг участка (декор за границей) ---
   {
     const F = W.forest;
@@ -234,6 +264,9 @@ export function buildOutside(): OutsideArea {
       const z = Math.sin(a) * r;
       if (Math.abs(x) < half + 0.8 && Math.abs(z) < half + 0.8) continue;
       if (Math.abs(x - W.gate.x) < 2.5 && z > 0) continue; // дорога в деревню
+      // не загораживать калитку (там стоит Агата) от камеры, которая смотрит с юго-востока
+      const dg = x - W.gate.x - (z - W.fenceZ);
+      if (Math.abs(dg) < F.gateViewClear && z > W.fenceZ && z - W.fenceZ < F.gateViewDepth) continue;
       const h = F.minHeight + rnd() * (F.maxHeight - F.minHeight);
       root.add(cyl(F.trunkRadius, F.trunkRadius, h * 0.3, C.forestTrunk, x, 0, z, 6));
       root.add(cone(h * 0.28, h * 0.8, C.forestCrown, x, h * 0.25, z, 7));
@@ -252,6 +285,8 @@ export function buildOutside(): OutsideArea {
     occluders,
     beds,
     stumps,
+    mailbox,
+    agata,
     floorY(x, z) {
       const inPorch =
         Math.abs(x - P.center[0]) < P.size[0] / 2 && Math.abs(z - P.center[1]) < P.size[1] / 2;

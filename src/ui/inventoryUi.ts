@@ -71,14 +71,24 @@ export class InventoryUi {
     const n = this.shown[id];
     s.count.textContent = id === 'water' ? `${n}/${CFG.gather.bucketCapacity}` : String(n);
     s.el.classList.toggle('empty', n === 0);
+    // изделия и подарки показываем, только когда они есть (или летят)
+    const always = (CFG.inventoryAlwaysShown as string[]).includes(id);
+    s.el.style.display = always || n > 0 || this.inFlight[id] > 0 ? '' : 'none';
   }
 
-  /** Запустить n предметов из точки экрана (x, y) в ячейку. */
-  fly(id: ItemId, x: number, y: number, n: number) {
+  /**
+   * Запустить n предметов из точки экрана (x, y) в ячейку.
+   * icons — сколько значков полетит (для монет меньше, чем сумма).
+   */
+  fly(id: ItemId, x: number, y: number, n: number, icons = n) {
     const F = CFG.feedback;
     const slot = this.slots.get(id)!.el;
-    for (let i = 0; i < n; i++) {
-      this.inFlight[id]++;
+    const count = Math.max(1, Math.min(icons, n));
+    this.inFlight[id] += n;
+    this.render(id);
+    for (let i = 0; i < count; i++) {
+      // сколько единиц «принесёт» этот значок
+      const part = Math.floor((n * (i + 1)) / count) - Math.floor((n * i) / count);
       window.setTimeout(() => {
         const r = slot.getBoundingClientRect();
         const tx = r.left + r.width / 2;
@@ -100,8 +110,8 @@ export class InventoryUi {
         );
         anim.onfinish = () => {
           icon.remove();
-          this.inFlight[id]--;
-          this.shown[id] = Math.min(this.inv.get(id), this.shown[id] + 1);
+          this.inFlight[id] -= part;
+          this.shown[id] = Math.min(this.inv.get(id), this.shown[id] + part);
           this.render(id);
           this.bump(slot);
           this.onLand(id, i);

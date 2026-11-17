@@ -60,10 +60,11 @@ npm run dev
 npx wrangler login
 ```
 
-Один раз создать проект:
+Один раз создать проект (уже сделано; флаг `--force` нужен, чтобы новые версии wrangler
+создали именно проект Cloudflare Pages, а не перевели его на Cloudflare Workers):
 
 ```bash
-npx wrangler pages project create little-house-proto0 --production-branch main
+npx wrangler pages project create little-house-proto0 --production-branch main --force
 ```
 
 Собрать и выложить:

@@ -121,13 +121,22 @@ export class Gathering {
         c.particles.emit('dirt', x, 0.25, z);
         squash(it.root, 0.8);
         break;
-      case 'planted':
+      case 'planted': {
+        const need = CFG.gather.waterPerWatering;
+        if (c.inv.get('water') < need) {
+          c.audio.play('bucketFull');
+          squash(it.root, 0.3);
+          c.message(U.needWater);
+          break;
+        }
+        c.inv.remove('water', need);
         this.beds[i] = 'watered';
         c.audio.play('pour');
         c.particles.emit('drops', x, 0.2, z);
         squash(it.root, 0.6);
         c.message(U.bedGrowing);
         break;
+      }
       case 'watered':
         squash(it.root, 0.4);
         c.message(U.bedGrowing);

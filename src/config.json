@@ -299,11 +299,12 @@
       "bedGrowing": "Полито — к утру вырастет",
       "bedRipe": "спелая",
       "bedEmpty": "пустая — посадить",
-      "bedPlanted": "посажено — полить",
+      "bedPlanted": "посажено — полить (1 вода)",
       "bedWatered": "полита, растёт",
       "stumpReady": "рубить",
       "stumpStub": "отрастёт завтра",
-      "streamHint": "черпать воду"
+      "streamHint": "черпать воду",
+      "needWater": "Нужна вода: зачерпни в ручье"
     },
     "debug": {
       "title": "Отладка",
@@ -452,7 +453,8 @@
     "stumpRegrowDays": 1,
     "bucketCapacity": 3,
     "scoopAmount": 1,
-    "actionCooldown": 0.15
+    "actionCooldown": 0.15,
+    "waterPerWatering": 1
   },
   "feedback": {
     "squashAmount": 0.22,

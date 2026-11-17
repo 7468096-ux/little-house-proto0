@@ -16,6 +16,7 @@ export class Audio {
   private ctx: AudioContext | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private noise: AudioBuffer | null = null;
+  private crackleGain: GainNode | null = null;
 
   constructor() {
     const unlock = () => {
@@ -46,6 +47,39 @@ export class Audio {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   }
 
+  /**
+   * Тихий треск фитиля фонаря: бесконечная петля, громкость 0..1 задаётся каждый кадр
+   * (по «ночности» и расстоянию до фонаря).
+   */
+  setCrackle(volume: number) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!this.crackleGain) {
+      const len = ctx.sampleRate * 3;
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      // редкие короткие щелчки разной силы
+      for (let i = 0; i < len; ) {
+        i += Math.floor(ctx.sampleRate * (0.03 + Math.random() * 0.25));
+        const amp = 0.2 + Math.random() * 0.8;
+        const dur = Math.floor(ctx.sampleRate * (0.002 + Math.random() * 0.006));
+        for (let k = 0; k < dur && i + k < len; k++) d[i + k] += (Math.random() * 2 - 1) * amp * (1 - k / dur);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1200;
+      this.crackleGain = ctx.createGain();
+      this.crackleGain.gain.value = 0;
+      src.connect(hp).connect(this.crackleGain).connect(ctx.destination);
+      src.start();
+    }
+    const v = Math.max(0, volume) * CFG.sounds.crackle.volume;
+    this.crackleGain.gain.setTargetAtTime(v, ctx.currentTime, 0.1);
+  }
+
   /** Проиграть звук. pitch — дополнительный сдвиг высоты (1 = как есть). */
   play(name: SoundName, pitch = 1) {
     const ctx = this.ctx;
@@ -71,6 +105,7 @@ export class Audio {
     } else if (def.synth === 'pour') {
       this.pour(out, rate);
     }
+    // 'crackle' — не разовый звук, а петля (setCrackle)
   }
 
   /** Всплеск: короткий шум через полосовой фильтр + «бульк» с падающим тоном. */

@@ -7,6 +7,7 @@ import { squash, updateSquash } from './fx/squash';
 import { GameClock } from './game/clock';
 import { Daylight } from './game/daylight';
 import { Cooking, RECIPES, type StationId } from './game/cooking';
+import { EventLog } from './game/eventLog';
 import { Gathering } from './game/gather';
 import { Inventory, type ItemId } from './game/inventory';
 import { Orders } from './game/orders';
@@ -14,6 +15,7 @@ import { Input } from './input';
 import type { P2 } from './nav/navArea';
 import { Player } from './player';
 import './style.css';
+import { DayScreens, type Summary } from './ui/dayScreens';
 import { DebugPanel } from './ui/debug';
 import { Hud } from './ui/hud';
 import { InventoryUi } from './ui/inventoryUi';
@@ -22,6 +24,7 @@ import { StationMenu } from './ui/stationMenu';
 import { StationTimers } from './ui/stationTimers';
 import { Overlay } from './ui/overlay';
 import { buildInterior } from './world/interior';
+import { Lantern, lanternNight } from './world/lantern';
 import { buildOutside } from './world/outside';
 import type { Area, Interactable, InteractKind } from './world/types';
 
@@ -96,6 +99,9 @@ function toScreen(x: number, y: number, z: number) {
   const r = renderer.domElement.getBoundingClientRect();
   return { x: r.left + ((projV.x + 1) / 2) * r.width, y: r.top + ((1 - projV.y) / 2) * r.height };
 }
+/** Журнал событий (выгрузка — этап 7). */
+const journal = new EventLog(() => ({ day: clock.day, time: clock.format() }));
+
 const gather = new Gathering(outside, {
   inv,
   invUi,
@@ -105,6 +111,7 @@ const gather = new Gathering(outside, {
   toScreen,
   message: (t) => ui.message(t),
   hero: () => ({ x: player.pos.x, z: player.pos.z, heading: player.heading }),
+  log: (type, data) => journal.add(type, data),
 });
 gather.dayRef = () => clock.day;
 
@@ -140,6 +147,7 @@ invUi.craftBtn.onclick = () => {
   const r = invUi.craftBtn.getBoundingClientRect();
   invUi.fly(bundleRecipe.product, r.left + r.width / 2, r.top - 10, 1);
   inv.add(bundleRecipe.product, 1);
+  journal.add('craft', { product: bundleRecipe.product, via: 'inventory' });
 };
 
 function stationLabel(id: StationId, label: string) {
@@ -169,12 +177,14 @@ function actStation(id: StationId, it: Interactable) {
     const s = toScreen(st.pos.x, st.height + 0.2, st.pos.z);
     invUi.fly(product, s.x, s.y, 1);
     inv.add(product, 1);
+    journal.add('craft', { product, station: id });
     return;
   }
   if (id === 'stove') audio.play('ovenOpen');
   squash(it.root, 0.5);
   menu.open(it.label, cooking.recipesFor(id)).then((r) => {
     if (!r || !cooking.start(id, r)) return;
+    journal.add('cookStart', { station: id, product: r.product });
     audio.play(id === 'stove' ? 'ovenClose' : 'pot');
     squash(it.root, 1);
     particles.emit(id === 'stove' ? 'sparks' : 'steam', st.pos.x, st.height, st.pos.z);
@@ -243,13 +253,17 @@ async function actMailbox() {
       audio.play('letter');
       refreshOrders();
       await screens.letter(l);
-      if (l.kind === 'payment') payCoins(l.order.pay, screenOf(mailboxIt, 1.2));
+      if (l.kind === 'payment') {
+        payCoins(l.order.pay, screenOf(mailboxIt, 1.2));
+        journal.add('payment', { order: l.order.title, pay: l.order.pay });
+      }
     }
     refreshOrders();
     return;
   }
   const o = await screens.mailbox();
   if (o && orders.deliverMail(o, clock.day)) {
+    journal.add('deliver', { way: 'mail', order: o.title, pay: o.pay });
     audio.play('letter');
     squash(mailboxIt.root, 1.2);
     ui.message(CFG.texts.ui.mailNote);
@@ -261,6 +275,7 @@ async function actAgata() {
   if (!agataIt.root.visible) return;
   const o = await screens.agata();
   if (o && orders.deliverHand(o, clock.day)) {
+    journal.add('deliver', { way: 'hand', order: o.title, pay: o.pay });
     const from = screenOf(agataIt, CFG.agata.height);
     payCoins(o.pay, from);
     const A = CFG.agata;
@@ -275,6 +290,44 @@ async function actAgata() {
 // утро дня 1: первое письмо уже в ящике
 orders.newDay(1);
 refreshOrders();
+
+// --- фонарь у крыльца и доска улучшений ---
+const dayScreens = new DayScreens(app);
+const lantern = new Lantern();
+scene.add(lantern.root);
+const boardIt = find(outside, 'board');
+let lanternBought = false;
+let gameOver = false;
+
+/** Открыто ли какое-нибудь окно (время и ввод стоят). */
+function anyScreen() {
+  return menu.isOpen || screens.isOpen || dayScreens.isOpen || gameOver;
+}
+
+async function actBoard() {
+  squash(boardIt.root, 0.6);
+  const yes = await dayScreens.board(inv.get('coins'), lanternBought);
+  if (!yes || lanternBought || !inv.remove('coins', CFG.lantern.price)) return;
+  lanternBought = true;
+  lantern.root.visible = true;
+  audio.play('buy');
+  squash(boardIt.root, 1.2);
+  const p = lantern.lampPos;
+  particles.emit('sparks', p.x, p.y, p.z);
+  ui.message(U.boughtMsg);
+  journal.add('purchase', { item: 'lantern', price: CFG.lantern.price });
+}
+
+function updateLantern(dt: number) {
+  const night = lanternNight(clock.hour);
+  lantern.update(dt, night);
+  let vol = 0;
+  if (lanternBought && player.area.id === 'outside' && !gameOver) {
+    const d = Math.hypot(player.pos.x - lantern.lampPos.x, player.pos.z - lantern.lampPos.z);
+    vol = night * Math.max(0, 1 - d / CFG.lantern.crackleDistance) * CFG.lantern.crackleVolume;
+  }
+  audio.setCrackle(vol);
+}
 
 let agataWasHere = false;
 function updateOrders() {
@@ -326,9 +379,67 @@ const insideSpawn = (): [P2, P2] => {
 };
 
 /** Сон: следующий день, 6:00, герой просыпается у кровати. */
-function sleep() {
+async function sleep() {
+  journal.add('sleep', { auto: autoReturn });
+  busy = true;
+  await dayScreens.summary(buildSummary(clock.day));
+  const last = clock.day >= CFG.time.days;
+  let more = false;
+  if (!last) {
+    more = await dayScreens.moreDay();
+    journal.add('moreDay', { answer: more ? 'yes' : 'no' });
+  }
+  if (!more) {
+    // конец прототипа: игра останавливается на финальном экране
+    journal.add('end');
+    gameOver = true;
+    dayScreens.end();
+    return;
+  }
   const next = clock.day + 1;
-  moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => startDay(next)).then(() => ui.message(U.goodMorning.replace('{day}', String(next))));
+  moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => startDay(next)).then(() =>
+    ui.message(U.goodMorning.replace('{day}', String(next))),
+  );
+}
+
+/** «Итоги дня» по журналу событий этого дня. */
+function buildSummary(day: number): Summary {
+  const S = CFG.texts.stats;
+  const ev = journal.ofDay(day);
+  let earned = 0;
+  const gathered: Record<string, number> = {};
+  const crafted: Record<string, number> = {};
+  let planted = 0;
+  let watered = 0;
+  const extra: string[] = [];
+  for (const e of ev) {
+    if (e.type === 'deliver') {
+      if (e.way === 'hand') earned += e.pay as number;
+      extra.push((e.way === 'hand' ? S.deliverHand : S.deliverMail).replace('{title}', String(e.order)));
+    } else if (e.type === 'payment') earned += e.pay as number;
+    else if (e.type === 'gather') gathered[e.item as string] = (gathered[e.item as string] ?? 0) + (e.n as number);
+    else if (e.type === 'craft') crafted[e.product as string] = (crafted[e.product as string] ?? 0) + 1;
+    else if (e.type === 'plant') planted++;
+    else if (e.type === 'waterBed') watered++;
+    else if (e.type === 'purchase') extra.push(S.purchase);
+  }
+  const done: string[] = [];
+  for (const id of ['potato', 'wood', 'water'] as const) {
+    if (gathered[id]) done.push(S[id].replace('{n}', String(gathered[id])));
+  }
+  if (planted) done.push(S.plant.replace('{n}', String(planted)));
+  if (watered) done.push(S.waterBed.replace('{n}', String(watered)));
+  for (const [id, n] of Object.entries(crafted)) {
+    done.push(S.craft.replace('{name}', CFG.items[id as ItemId].name).replace('{n}', String(n)));
+  }
+  done.push(...extra);
+
+  const H = CFG.texts.hints;
+  let hint = H.rest;
+  if (!lanternBought && inv.get('coins') >= CFG.lantern.price) hint = H.lanternAfford;
+  else if (orders.active.length > 0) hint = H.activeOrder.replace('{title}', orders.active[0].title);
+  else if (CFG.orders.some((o) => o.day === day + 1)) hint = H.newLetter;
+  return { day, earned, done, grow: gather.growingCount, hint };
 }
 
 /** 2:00 — герой зевает и сам идёт домой, потом ложится. */
@@ -342,6 +453,10 @@ function startAutoReturn() {
 
 player.onArrive = (it) => {
   player.setTool(null);
+  if (it.kind === 'board') {
+    actBoard();
+    return;
+  }
   if (it.kind === 'mailbox') {
     actMailbox();
     return;
@@ -369,7 +484,9 @@ player.onArrive = (it) => {
     moveTo(outside, doorOut, { x: doorOut.x, z: doorOut.z + 1 });
   } else if (it.kind === 'sleepBed') {
     if (autoReturn) sleep();
-    else hud.ask(U.sleepQuestion).then((yes) => yes && sleep());
+    else hud.ask(U.sleepQuestion).then((yes) => {
+      if (yes) sleep();
+    });
   } else {
     // действия с объектами появятся на следующих этапах
     ui.message(U.arrived.replace('{name}', it.label));
@@ -399,6 +516,9 @@ function labelFor(it: Interactable) {
   if (it.kind === 'stove' || it.kind === 'plate') return stationLabel(it.kind, it.label);
   if (it.kind === 'mailbox') return `${it.label}: ${orders.hasMail ? U.mailboxNew : U.mailboxEmpty}`;
   if (it.kind === 'agata') return `${it.label}: ${U.agataHint}`;
+  if (it.kind === 'board') {
+    return `${it.label}: ${lanternBought ? U.boardBought : U.boardHint.replace('{n}', String(CFG.lantern.price))}`;
+  }
   return gather.labelFor(it);
 }
 
@@ -432,7 +552,7 @@ let clockText = '';
 
 /** dt — для движения (обрезан, чтобы не было рывков); realDt — для часов (точный). */
 function frame(dt: number, realDt: number) {
-  const locked = busy || hud.modalOpen || (menu.isOpen || screens.isOpen) || autoReturn;
+  const locked = busy || hud.modalOpen || anyScreen() || autoReturn;
 
   // наведение и клик
   const pick = locked ? null : input.pick(rig.camera, player.area);
@@ -456,14 +576,14 @@ function frame(dt: number, realDt: number) {
   }
 
   // время стоит, пока открыто окно; в доме идёт медленнее (time.insideScale)
-  const running = !hud.modalOpen && !(menu.isOpen || screens.isOpen) && !busy;
+  const running = !hud.modalOpen && !anyScreen() && !busy;
   const indoors = player.area.id === 'inside';
   if (running) {
     const h0 = clock.hour;
     clock.tick(realDt * (indoors ? CFG.time.insideScale : 1));
     cooking.tick(clock.hour - h0);
   }
-  if (clock.ended && !autoReturn && !busy && !hud.modalOpen && !(menu.isOpen || screens.isOpen)) startAutoReturn();
+  if (clock.ended && !autoReturn && !busy && !hud.modalOpen && !anyScreen()) startAutoReturn();
 
   const clockState = !running ? 'paused' : indoors ? 'slow' : 'normal';
   const text = `${clock.day}|${clock.format()}|${clockState}`;
@@ -477,6 +597,7 @@ function frame(dt: number, realDt: number) {
   updateOccluders();
   updateStations(dt);
   updateOrders();
+  updateLantern(dt);
   particles.update(dt);
   updateSquash(dt);
 
@@ -502,5 +623,5 @@ window.addEventListener('resize', () => {
 
 // только для разработки: доступ к состоянию из консоли браузера
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside, orders };
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside, orders, journal, lantern };
 }

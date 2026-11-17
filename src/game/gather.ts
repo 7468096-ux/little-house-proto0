@@ -7,6 +7,7 @@ import type { Tool } from '../player';
 import type { InventoryUi } from '../ui/inventoryUi';
 import type { OutsideArea } from '../world/outside';
 import type { Interactable } from '../world/types';
+import type { EventType } from './eventLog';
 import type { Inventory } from './inventory';
 
 // Добыча: грядки, пни, ручей. Правила — из config.json → gather.
@@ -25,6 +26,8 @@ export interface GatherCtx {
   message(text: string): void;
   /** Где стоит герой и куда смотрит (для брызг у ручья). */
   hero(): { x: number; z: number; heading: number };
+  /** Записать событие в журнал. */
+  log(type: EventType, data?: Record<string, unknown>): void;
 }
 
 export class Gathering {
@@ -113,10 +116,12 @@ export class Gathering {
         const s = c.toScreen(x, 0.4, z);
         c.invUi.fly('potato', s.x, s.y, n);
         c.inv.add('potato', n);
+        c.log('gather', { item: 'potato', n, bed: i });
         break;
       }
       case 'empty':
         this.beds[i] = 'planted';
+        c.log('plant', { bed: i });
         c.audio.play('plant');
         c.particles.emit('dirt', x, 0.25, z);
         squash(it.root, 0.8);
@@ -131,6 +136,7 @@ export class Gathering {
         }
         c.inv.remove('water', need);
         this.beds[i] = 'watered';
+        c.log('waterBed', { bed: i });
         c.audio.play('pour');
         c.particles.emit('drops', x, 0.2, z);
         squash(it.root, 0.6);
@@ -169,6 +175,7 @@ export class Gathering {
     }
     const st = this.stumps[i];
     st.hits++;
+    c.log('chop', { stump: i, hit: st.hits });
     const top = CFG.world.stumpHeight;
     if (st.hits < CFG.gather.chopHits) {
       // с каждым ударом звук чуть выше — слышно, что дело идёт
@@ -189,6 +196,7 @@ export class Gathering {
     const s = c.toScreen(x, top, z);
     c.invUi.fly('wood', s.x, s.y, n);
     c.inv.add('wood', n);
+    c.log('gather', { item: 'wood', n, stump: i });
   }
 
   private renderStump(i: number) {
@@ -217,6 +225,7 @@ export class Gathering {
     const s = c.toScreen(x, 0.2, z);
     c.invUi.fly('water', s.x, s.y, n);
     c.inv.add('water', n);
+    c.log('gather', { item: 'water', n });
   }
 }
 

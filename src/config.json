@@ -68,7 +68,11 @@
     "toolWood": "#8a7a68",
     "toolMetal": "#9aa0a6",
     "mailFlag": "#b5584a",
-    "envelope": "#f2eee6"
+    "envelope": "#f2eee6",
+    "lanternPost": "#5e5650",
+    "lanternGlass": "#ffe2a8",
+    "board": "#8a7a68",
+    "boardPaper": "#efe9dc"
   },
   "world": {
     "size": 30,
@@ -219,6 +223,16 @@
       "maxHeight": 6,
       "gateViewClear": 4.5,
       "gateViewDepth": 12
+    },
+    "board": {
+      "pos": [
+        -2.9,
+        -2.3
+      ],
+      "size": [
+        1.4,
+        0.9
+      ]
     }
   },
   "interior": {
@@ -288,7 +302,8 @@
       "stove": "Печь",
       "plate": "Плита",
       "sleepBed": "Кровать",
-      "agata": "Бабушка Агата"
+      "agata": "Бабушка Агата",
+      "board": "Доска улучшений"
     },
     "ui": {
       "arrived": "Рядом: {name}",
@@ -342,7 +357,27 @@
       "paid": "+{n} монет",
       "mailboxNew": "новое письмо",
       "mailboxEmpty": "положить заказ",
-      "agataHint": "отдать заказ"
+      "agataHint": "отдать заказ",
+      "lanternTitle": "Фонарь у крыльца",
+      "lanternDesc": "Тёплый свет ночью. Мотыльки прилагаются.",
+      "buy": "Купить за {n} монет",
+      "bought": "Уже висит у крыльца",
+      "notEnough": "Не хватает {n} монет",
+      "boughtMsg": "Фонарь висит у крыльца — загорится, когда стемнеет",
+      "boardHint": "фонарь — {n} монет",
+      "boardBought": "фонарь куплен",
+      "summaryTitle": "Итоги дня {day}",
+      "earned": "Заработано: {n} монет",
+      "done": "Сделано:",
+      "nothingDone": "Сегодня просто отдыхали",
+      "growTomorrow": "К утру созреет грядок: {n}",
+      "growNone": "К утру ничего не созреет — грядки не политы",
+      "next": "Дальше",
+      "moreDay": "Ещё день?",
+      "moreYes": "Да",
+      "moreNo": "Хватит",
+      "endTitle": "Конец прототипа, спасибо!",
+      "endText": "Спасибо, что заглянули в домик в лесу."
     },
     "debug": {
       "title": "Отладка",
@@ -352,6 +387,23 @@
       "give": "Дать ресурсы и 100 монет",
       "reset": "Сброс",
       "hint": "Клавиша ` (Ё) — закрыть"
+    },
+    "stats": {
+      "potato": "Выкопано картофеля: {n}",
+      "wood": "Нарублено дров: {n}",
+      "water": "Зачерпнуто воды: {n}",
+      "plant": "Посажено грядок: {n}",
+      "waterBed": "Полито грядок: {n}",
+      "craft": "{name}: {n}",
+      "deliverHand": "Отдан заказ «{title}» из рук в руки",
+      "deliverMail": "Отправлен заказ «{title}» почтой",
+      "purchase": "Куплен фонарь"
+    },
+    "hints": {
+      "lanternAfford": "Монет хватает на фонарь — доска у крыльца",
+      "activeOrder": "Не забыть: «{title}»",
+      "newLetter": "Утром в ящике будет новое письмо",
+      "rest": "Завтра пни отрастут, а грядки будут ждать"
     }
   },
   "time": {
@@ -699,6 +751,17 @@
         "bookFlip2.ogg"
       ],
       "volume": 0.7
+    },
+    "buy": {
+      "files": [
+        "handleCoins2.ogg",
+        "metalLatch.ogg"
+      ],
+      "volume": 0.8
+    },
+    "crackle": {
+      "synth": "crackle",
+      "volume": 1
     }
   },
   "recipes": [
@@ -790,5 +853,35 @@
     "potato",
     "wood",
     "water"
-  ]
+  ],
+  "lantern": {
+    "price": 120,
+    "pos": [
+      2.1,
+      -2.7
+    ],
+    "postHeight": 2.1,
+    "light": {
+      "color": "#ffcf8a",
+      "intensity": 16,
+      "distance": 22,
+      "decay": 1.1,
+      "shadowMapSize": 512
+    },
+    "onFrom": 18.5,
+    "fullAt": 20,
+    "glowSize": 4.2,
+    "glowOpacity": 0.8,
+    "moths": {
+      "count": 4,
+      "radius": 0.55,
+      "speed": 2.4,
+      "size": 0.06,
+      "color": "#f4efe2"
+    },
+    "crackleVolume": 0.35,
+    "crackleDistance": 8,
+    "groundGlowSize": 16,
+    "groundGlowOpacity": 0.4
+  }
 }

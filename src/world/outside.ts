@@ -236,6 +236,26 @@ export function buildOutside(): OutsideArea {
     obstacles.push({ kind: 'rect', minX: x0 - 1, maxX: x1 + 1, minZ: fz - 0.1, maxZ: fz + 0.1 });
   }
 
+  // --- доска улучшений у крыльца ---
+  {
+    const B = W.board;
+    const [bx, bz] = B.pos;
+    const [bw, bh] = B.size;
+    const g = new THREE.Group();
+    g.add(box(0.1, 1.6, 0.1, C.board, bx - bw / 2 + 0.1, 0, bz));
+    g.add(box(0.1, 1.6, 0.1, C.board, bx + bw / 2 - 0.1, 0, bz));
+    g.add(box(bw, bh, 0.08, C.board, bx, 0.75, bz));
+    g.add(box(bw * 0.4, bh * 0.6, 0.02, C.boardPaper, bx - bw * 0.2, 0.9, bz + 0.05));
+    add({ kind: 'board', root: g, approach: { x: bx, z: bz + 0.8 }, faceTo: { x: bx, z: bz } });
+    obstacles.push({ kind: 'rect', minX: bx - bw / 2, maxX: bx + bw / 2, minZ: bz - 0.1, maxZ: bz + 0.1 });
+  }
+
+  // --- столб фонаря (сам фонарь появится после покупки, но место под столб занято сразу) ---
+  {
+    const [lx, lz] = CFG.lantern.pos;
+    obstacles.push({ kind: 'circle', x: lx, z: lz, r: 0.12 });
+  }
+
   // --- бабушка Агата за калиткой (видна 17:00–21:00) ---
   {
     const A = CFG.agata;

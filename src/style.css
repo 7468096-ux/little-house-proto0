@@ -444,3 +444,31 @@ button.secondary {
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
+
+.modal-backdrop.solid {
+  background: rgba(10, 10, 14, 0.82);
+}
+.summary-earned {
+  font-size: 20px;
+  font-weight: 600;
+  color: #f3c76b;
+}
+.summary-h {
+  font-weight: 600;
+}
+.summary-hint {
+  font-style: italic;
+  opacity: 0.85;
+}
+.end {
+  align-items: center;
+  text-align: center;
+}
+
+.modal {
+  max-width: min(440px, calc(100vw - 32px));
+  box-sizing: border-box;
+}
+.recipe {
+  overflow-wrap: anywhere;
+}

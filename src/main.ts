@@ -6,6 +6,7 @@ import { Particles } from './fx/particles';
 import { squash, updateSquash } from './fx/squash';
 import { GameClock } from './game/clock';
 import { Daylight } from './game/daylight';
+import { Grade } from './fx/grade';
 import { Cooking, RECIPES, type StationId } from './game/cooking';
 import { EventLog } from './game/eventLog';
 import { Gathering } from './game/gather';
@@ -79,6 +80,7 @@ const player = new Player(outside, startPos);
 scene.add(player.mesh);
 
 const rig = new CameraRig();
+const grade = new Grade(renderer, scene, rig.camera);
 rig.snapTo(player.pos);
 const input = new Input(renderer.domElement);
 const ui = new Overlay(app);
@@ -629,7 +631,7 @@ function frame(dt: number, realDt: number) {
   sun.position.copy(rig.target).add(daylight.sunOffset);
   sun.target.position.copy(rig.target);
 
-  renderer.render(scene, rig.camera);
+  grade.render(scene, rig.camera);
 }
 
 const timer = new THREE.Timer();
@@ -642,6 +644,7 @@ renderer.setAnimationLoop((t) => {
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   rig.resize(window.innerWidth, window.innerHeight);
+  grade.resize(window.innerWidth, window.innerHeight);
 });
 
 // только для разработки: доступ к состоянию из консоли браузера

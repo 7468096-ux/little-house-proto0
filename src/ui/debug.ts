@@ -6,6 +6,7 @@ export interface DebugActions {
   setFast(on: boolean): void;
   goToDay(n: number): void;
   give(): void;
+  downloadLog(): void;
   reset(): void;
 }
 
@@ -41,6 +42,11 @@ export class DebugPanel {
     give.textContent = D.give;
     give.onclick = () => this.actions.give();
     this.el.append(give);
+
+    const log = document.createElement('button');
+    log.textContent = D.downloadLog;
+    log.onclick = () => this.actions.downloadLog();
+    this.el.append(log);
 
     const reset = document.createElement('button');
     reset.textContent = D.reset;

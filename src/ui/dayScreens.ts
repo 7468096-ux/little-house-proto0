@@ -116,6 +116,18 @@ export class DayScreens {
     });
   }
 
+  /** Короткая подсказка управления при старте. */
+  intro(): Promise<void> {
+    const I = CFG.texts.intro;
+    return this.open<void>('end solid', (box, done) => {
+      box.append(el('div', 'modal-q', I.title));
+      for (const line of I.lines) box.append(el('div', 'intro-line', line));
+      const b = el('button', '', I.start);
+      b.onclick = () => done();
+      box.append(b);
+    });
+  }
+
   /** Финальный экран. extra — место для кнопок (журнал, этап 7). */
   end(extra?: (box: HTMLElement) => void) {
     this.open<void>('end solid', (box) => {

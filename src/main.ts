@@ -329,6 +329,9 @@ function updateLantern(dt: number) {
   audio.setCrackle(vol);
 }
 
+// короткая подсказка управления при старте (время стоит, пока открыта)
+dayScreens.intro().then(() => journal.add('start'));
+
 let agataWasHere = false;
 function updateOrders() {
   const here = Orders.agataHere(clock.hour);
@@ -393,13 +396,32 @@ async function sleep() {
     // конец прототипа: игра останавливается на финальном экране
     journal.add('end');
     gameOver = true;
-    dayScreens.end();
+    dayScreens.end((box) => {
+      const b = document.createElement('button');
+      b.textContent = U.downloadLog;
+      b.onclick = () => downloadJournal();
+      box.append(b);
+    });
     return;
   }
   const next = clock.day + 1;
   moveTo(inside, sleepBed.approach!, sleepBed.faceTo!, () => startDay(next)).then(() =>
     ui.message(U.goodMorning.replace('{day}', String(next))),
   );
+}
+
+/** Выгрузка журнала с короткой сводкой состояния. */
+function downloadJournal() {
+  journal.download(CFG.logFileName, {
+    day: clock.day,
+    time: clock.format(),
+    coins: inv.get('coins'),
+    lanternBought,
+    ordersActive: orders.active.map((o) => o.title),
+    ordersDelivered: orders.delivered.map((d) => ({ order: d.order.title, way: d.way, day: d.day })),
+    inventory: { ...inv.counts },
+    finished: gameOver,
+  });
 }
 
 /** «Итоги дня» по журналу событий этого дня. */
@@ -506,6 +528,7 @@ new DebugPanel(app, {
     inv.add('water', Math.max(0, G.water - inv.get('water')));
     inv.add('coins', G.coins);
   },
+  downloadLog: () => downloadJournal(),
   reset: () => location.reload(),
 });
 

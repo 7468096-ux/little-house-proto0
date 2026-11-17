@@ -14,7 +14,8 @@ export type EventType =
   | 'purchase' // item
   | 'sleep' // auto: true/false
   | 'moreDay' // answer: yes/no
-  | 'end';
+  | 'end'
+  | 'start'; // игрок закрыл подсказку и начал
 
 export interface GameEvent {
   type: EventType;
@@ -44,6 +45,22 @@ export class EventLog {
       time,
       ...data,
     });
+  }
+
+  /** Скачать журнал файлом JSON (только локально, без сети). */
+  download(fileBase: string, summary: Record<string, unknown>) {
+    const started = new Date(Date.now() - (performance.now() - this.t0));
+    const data = { game: 'little-house-proto0', startedAt: started.toISOString(), savedAt: new Date().toISOString(), summary, events: this.events };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+    a.href = url;
+    a.download = `${fileBase}-${stamp}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   ofDay(day: number) {

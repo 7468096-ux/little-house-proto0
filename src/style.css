@@ -472,3 +472,8 @@ button.secondary {
 .recipe {
   overflow-wrap: anywhere;
 }
+
+.intro-line {
+  font-size: 15px;
+  line-height: 1.4;
+}

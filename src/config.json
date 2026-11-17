@@ -304,7 +304,18 @@
       "stumpReady": "рубить",
       "stumpStub": "отрастёт завтра",
       "streamHint": "черпать воду",
-      "needWater": "Нужна вода: зачерпни в ручье"
+      "needWater": "Нужна вода: зачерпни в ручье",
+      "cook": "Готовить",
+      "close": "Закрыть",
+      "time": "Время: {n} ч",
+      "instant": "сразу",
+      "missing": "Не хватает: {list}",
+      "cooking": "готовится, ещё {m} мин",
+      "ready": "готово — забрать",
+      "stationIdle": "готовить",
+      "cookingMsg": "{name}: готовится, ещё {m} мин",
+      "bundle": "Связать дрова",
+      "ingredients": "Нужно:"
     },
     "debug": {
       "title": "Отладка",
@@ -444,6 +455,18 @@
     "water": {
       "name": "Вода",
       "color": "#7fa6c8"
+    },
+    "bakedPotato": {
+      "name": "Печёный картофель",
+      "color": "#c9944f"
+    },
+    "soup": {
+      "name": "Картофельный суп",
+      "color": "#d9b86a"
+    },
+    "woodBundle": {
+      "name": "Связка дров",
+      "color": "#7a5a3c"
     }
   },
   "gather": {
@@ -509,9 +532,28 @@
         "size": 0.06,
         "life": 0.6,
         "height": 1.4
+      },
+      "steam": {
+        "count": 3,
+        "color": "#e8e8e8",
+        "speed": 0.25,
+        "up": 0.9,
+        "size": 0.14,
+        "life": 1.6,
+        "gravity": -0.4
+      },
+      "sparks": {
+        "count": 10,
+        "color": "#ffb060",
+        "speed": 1.2,
+        "up": 2.5,
+        "size": 0.06,
+        "life": 0.6
       }
     },
-    "gravity": 12
+    "gravity": 12,
+    "steamEvery": 0.25,
+    "timerLabelOffsetY": -14
   },
   "sounds": {
     "hit": {
@@ -581,6 +623,61 @@
     "pour": {
       "synth": "pour",
       "volume": 0.35
+    },
+    "ovenOpen": {
+      "files": [
+        "creak1.ogg",
+        "creak2.ogg"
+      ],
+      "volume": 0.7
+    },
+    "ovenClose": {
+      "files": [
+        "metalLatch.ogg"
+      ],
+      "volume": 0.6
+    },
+    "pot": {
+      "files": [
+        "metalPot1.ogg"
+      ],
+      "volume": 0.6
+    },
+    "bundle": {
+      "files": [
+        "handleSmallLeather2.ogg",
+        "chop.ogg"
+      ],
+      "volume": 0.8
     }
-  }
+  },
+  "recipes": [
+    {
+      "product": "bakedPotato",
+      "station": "stove",
+      "inputs": {
+        "potato": 2,
+        "wood": 1
+      },
+      "hours": 1
+    },
+    {
+      "product": "soup",
+      "station": "plate",
+      "inputs": {
+        "potato": 2,
+        "water": 1,
+        "wood": 1
+      },
+      "hours": 1
+    },
+    {
+      "product": "woodBundle",
+      "station": "inventory",
+      "inputs": {
+        "wood": 5
+      },
+      "hours": 0
+    }
+  ]
 }

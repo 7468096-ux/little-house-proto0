@@ -3,11 +3,12 @@ import { CameraRig, ISO_DIR } from './camera';
 import { CFG, p2 } from './config';
 import { Audio } from './fx/audio';
 import { Particles } from './fx/particles';
-import { updateSquash } from './fx/squash';
+import { squash, updateSquash } from './fx/squash';
 import { GameClock } from './game/clock';
 import { Daylight } from './game/daylight';
+import { Cooking, RECIPES, type StationId } from './game/cooking';
 import { Gathering } from './game/gather';
-import { Inventory } from './game/inventory';
+import { Inventory, type ItemId } from './game/inventory';
 import { Input } from './input';
 import type { P2 } from './nav/navArea';
 import { Player } from './player';
@@ -15,6 +16,8 @@ import './style.css';
 import { DebugPanel } from './ui/debug';
 import { Hud } from './ui/hud';
 import { InventoryUi } from './ui/inventoryUi';
+import { StationMenu } from './ui/stationMenu';
+import { StationTimers } from './ui/stationTimers';
 import { Overlay } from './ui/overlay';
 import { buildInterior } from './world/interior';
 import { buildOutside } from './world/outside';
@@ -85,25 +88,116 @@ const invUi = new InventoryUi(app, inv);
 inv.onChange = () => invUi.sync();
 invUi.onLand = (_id, i) => audio.play('pickup', 1 + i * CFG.feedback.pickupPitchStep);
 const projV = new THREE.Vector3();
+/** Точка мира → пиксели экрана. */
+function toScreen(x: number, y: number, z: number) {
+  projV.set(x, y, z).project(rig.camera);
+  const r = renderer.domElement.getBoundingClientRect();
+  return { x: r.left + ((projV.x + 1) / 2) * r.width, y: r.top + ((1 - projV.y) / 2) * r.height };
+}
 const gather = new Gathering(outside, {
   inv,
   invUi,
   audio,
   particles,
   rig,
-  toScreen(x, y, z) {
-    projV.set(x, y, z).project(rig.camera);
-    const r = renderer.domElement.getBoundingClientRect();
-    return { x: r.left + ((projV.x + 1) / 2) * r.width, y: r.top + ((1 - projV.y) / 2) * r.height };
-  },
+  toScreen,
   message: (t) => ui.message(t),
   hero: () => ({ x: player.pos.x, z: player.pos.z, heading: player.heading }),
 });
 gather.dayRef = () => clock.day;
 
+// --- готовка: печь, плита, связка дров ---
+const cooking = new Cooking(inv);
+const menu = new StationMenu(app, inv, cooking);
+const timers = new StationTimers(app);
+const stations = (['stove', 'plate'] as StationId[]).map((id) => {
+  const it = find(inside, id);
+  const pos = new THREE.Vector3();
+  it.root.getWorldPosition(pos);
+  return { id, it, pos, height: CFG.interior[id].size[1] };
+});
+const bundleRecipe = RECIPES.find((r) => r.station === 'inventory')!;
+
+function updateCraftButton() {
+  const U = CFG.texts.ui;
+  const miss = cooking.missing(bundleRecipe);
+  const name = CFG.items[bundleRecipe.product].name;
+  const need = Cooking.listText(Object.entries(bundleRecipe.inputs) as [ItemId, number][]);
+  if (miss.length === 0) invUi.setCraft(U.bundle, need, true);
+  else invUi.setCraft(name, U.missing.replace('{list}', Cooking.listText(miss)), false);
+}
+inv.onChange = () => {
+  invUi.sync();
+  updateCraftButton();
+};
+updateCraftButton();
+invUi.craftBtn.onclick = () => {
+  if (!cooking.craftNow(bundleRecipe)) return;
+  audio.play('bundle');
+  const r = invUi.craftBtn.getBoundingClientRect();
+  invUi.fly(bundleRecipe.product, r.left + r.width / 2, r.top - 10, 1);
+  inv.add(bundleRecipe.product, 1);
+};
+
+function stationLabel(id: StationId, label: string) {
+  const U = CFG.texts.ui;
+  const slot = cooking.slots[id];
+  if (!slot) return `${label}: ${U.stationIdle}`;
+  const name = CFG.items[slot.recipe.product].name;
+  return slot.left > 0
+    ? `${label}: ${name}, ${U.cooking.replace('{m}', String(Math.ceil(slot.left * 60)))}`
+    : `${label}: ${name} — ${U.ready}`;
+}
+
+/** Клик по печи или плите: забрать готовое, сказать сколько ждать или открыть меню. */
+function actStation(id: StationId, it: Interactable) {
+  const st = stations.find((s) => s.id === id)!;
+  const slot = cooking.slots[id];
+  const U = CFG.texts.ui;
+  if (slot && slot.left > 0) {
+    squash(it.root, 0.3);
+    ui.message(U.cookingMsg.replace('{name}', CFG.items[slot.recipe.product].name).replace('{m}', String(Math.ceil(slot.left * 60))));
+    return;
+  }
+  if (slot) {
+    const product = cooking.take(id)!;
+    audio.play(id === 'stove' ? 'ovenOpen' : 'pot');
+    squash(it.root, 1);
+    const s = toScreen(st.pos.x, st.height + 0.2, st.pos.z);
+    invUi.fly(product, s.x, s.y, 1);
+    inv.add(product, 1);
+    return;
+  }
+  if (id === 'stove') audio.play('ovenOpen');
+  squash(it.root, 0.5);
+  menu.open(it.label, cooking.recipesFor(id)).then((r) => {
+    if (!r || !cooking.start(id, r)) return;
+    audio.play(id === 'stove' ? 'ovenClose' : 'pot');
+    squash(it.root, 1);
+    particles.emit(id === 'stove' ? 'sparks' : 'steam', st.pos.x, st.height, st.pos.z);
+  });
+}
+
+let steamTimer = 0;
+function updateStations(dt: number) {
+  const insideNow = player.area.id === 'inside';
+  steamTimer -= dt;
+  const puff = steamTimer <= 0;
+  if (puff) steamTimer = CFG.feedback.steamEvery;
+  for (const st of stations) {
+    const slot = cooking.slots[st.id];
+    timers.update(st.id, slot, insideNow ? toScreen(st.pos.x, st.height + 0.3, st.pos.z) : null);
+    // пар над супом
+    if (insideNow && puff && slot && slot.recipe.product === 'soup') {
+      particles.emit('steam', st.pos.x, st.height + 0.05, st.pos.z);
+    }
+  }
+}
+
 /** Начало нового дня: часы, рост грядок, пни. */
 function startDay(n: number) {
   clock.startDay(n);
+  cooking.finishAll();
   gather.newDay(n);
   autoReturn = false;
 }
@@ -163,6 +257,10 @@ function startAutoReturn() {
 
 player.onArrive = (it) => {
   player.setTool(null);
+  if (it.kind === 'stove' || it.kind === 'plate') {
+    actStation(it.kind, it);
+    return;
+  }
   if (gather.act(it)) {
     player.setTool(gather.toolFor(it));
     return;
@@ -202,6 +300,11 @@ new DebugPanel(app, {
 
 let hovered: Interactable | null = null;
 
+function labelFor(it: Interactable) {
+  if (it.kind === 'stove' || it.kind === 'plate') return stationLabel(it.kind, it.label);
+  return gather.labelFor(it);
+}
+
 // --- дом просвечивает, когда герой за ним ---
 const occRay = new THREE.Raycaster();
 const faded = new Set<THREE.Object3D>();
@@ -232,7 +335,7 @@ let clockText = '';
 
 /** dt — для движения (обрезан, чтобы не было рывков); realDt — для часов (точный). */
 function frame(dt: number, realDt: number) {
-  const locked = busy || hud.modalOpen || autoReturn;
+  const locked = busy || hud.modalOpen || menu.isOpen || autoReturn;
 
   // наведение и клик
   const pick = locked ? null : input.pick(rig.camera, player.area);
@@ -243,7 +346,7 @@ function frame(dt: number, realDt: number) {
     hovered = nowHover;
   }
   renderer.domElement.style.cursor = nowHover ? 'pointer' : 'default';
-  ui.setHover(nowHover ? gather.labelFor(nowHover) : null, input.mouseX, input.mouseY);
+  ui.setHover(nowHover ? labelFor(nowHover) : null, input.mouseX, input.mouseY);
 
   if (input.clicked) {
     input.clicked = false;
@@ -256,8 +359,12 @@ function frame(dt: number, realDt: number) {
   }
 
   // время идёт только на улице и когда не открыто окно
-  const running = player.area.id === 'outside' && !hud.modalOpen && !busy;
-  if (running) clock.tick(realDt);
+  const running = player.area.id === 'outside' && !hud.modalOpen && !menu.isOpen && !busy;
+  if (running) {
+    const h0 = clock.hour;
+    clock.tick(realDt);
+    cooking.tick(clock.hour - h0);
+  }
   if (clock.ended && !autoReturn && !busy && player.area.id === 'outside') startAutoReturn();
 
   const text = `${clock.day}|${clock.format()}|${running}`;
@@ -269,6 +376,7 @@ function frame(dt: number, realDt: number) {
   player.update(dt, locked ? { x: 0, z: 0 } : input.wasd());
   rig.follow(cameraFocus(), dt);
   updateOccluders();
+  updateStations(dt);
   particles.update(dt);
   updateSquash(dt);
 
@@ -294,5 +402,5 @@ window.addEventListener('resize', () => {
 
 // только для разработки: доступ к состоянию из консоли браузера
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside };
+  (window as unknown as { __game: unknown }).__game = { clock, player, frame, gather, inv, outside, cooking, inside };
 }

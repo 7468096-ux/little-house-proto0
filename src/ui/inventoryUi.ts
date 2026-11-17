@@ -19,6 +19,8 @@ export class InventoryUi {
   private inFlight = {} as Record<ItemId, number>;
   /** Вызывается, когда предмет долетел (для звука). index — номер в серии. */
   onLand: (id: ItemId, index: number) => void = () => {};
+  /** Кнопка крафта прямо в инвентаре (связка дров). */
+  readonly craftBtn = document.createElement('button');
 
   constructor(parent: HTMLElement, private inv: Inventory) {
     this.bar.className = 'inventory';
@@ -37,8 +39,23 @@ export class InventoryUi {
       this.shown[id] = 0;
       this.inFlight[id] = 0;
     }
+    this.craftBtn.className = 'craft';
+    this.bar.append(this.craftBtn);
     parent.append(this.bar);
     this.sync();
+  }
+
+  /** Обновить кнопку крафта: подпись и можно ли нажать. */
+  setCraft(title: string, sub: string, enabled: boolean) {
+    this.craftBtn.innerHTML = '';
+    const t = document.createElement('span');
+    t.className = 'craft-title';
+    t.textContent = title;
+    const d = document.createElement('span');
+    d.className = 'craft-sub';
+    d.textContent = sub;
+    this.craftBtn.append(t, d);
+    this.craftBtn.disabled = !enabled;
   }
 
   /** Привести цифры к инвентарю (с учётом предметов, что ещё летят). */

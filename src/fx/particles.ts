@@ -13,6 +13,7 @@ interface P {
   maxLife: number;
   size: number;
   spin: THREE.Vector3;
+  gravity: number;
 }
 
 const POOL = 300;
@@ -28,14 +29,14 @@ export class Particles {
       mesh.visible = false;
       mesh.castShadow = true;
       scene.add(mesh);
-      this.pool.push({ mesh, vel: new THREE.Vector3(), life: 0, maxLife: 1, size: 0.1, spin: new THREE.Vector3() });
+      this.pool.push({ mesh, vel: new THREE.Vector3(), life: 0, maxLife: 1, size: 0.1, spin: new THREE.Vector3(), gravity: 0 });
     }
   }
 
   /** Выпустить облачко частиц из точки (y — высота над землёй). */
   emit(kind: ParticleKind, x: number, y: number, z: number) {
     const def = CFG.feedback.particles[kind] as {
-      count: number; color: string; speed: number; up: number; size: number; life: number; height?: number;
+      count: number; color: string; speed: number; up: number; size: number; life: number; height?: number; gravity?: number;
     };
     for (let i = 0; i < def.count; i++) {
       const p = this.pool[this.next];
@@ -54,13 +55,13 @@ export class Particles {
       p.size = def.size * (0.7 + Math.random() * 0.6);
       p.maxLife = def.life * (0.7 + Math.random() * 0.6);
       p.life = p.maxLife;
+      p.gravity = def.gravity ?? CFG.feedback.gravity;
       (p.mesh.material as THREE.MeshStandardMaterial).color.set(def.color);
       p.mesh.visible = true;
     }
   }
 
   update(dt: number) {
-    const g = CFG.feedback.gravity;
     for (const p of this.pool) {
       if (p.life <= 0) continue;
       p.life -= dt;
@@ -68,7 +69,7 @@ export class Particles {
         p.mesh.visible = false;
         continue;
       }
-      p.vel.y -= g * dt;
+      p.vel.y -= p.gravity * dt;
       p.mesh.position.addScaledVector(p.vel, dt);
       if (p.mesh.position.y < p.size / 2) {
         p.mesh.position.y = p.size / 2;
